@@ -1,2 +1,2 @@
 # plango
-A HTTP operated job planner/scheduler.
+A RESTful operated job planner/scheduler.

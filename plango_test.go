@@ -5,6 +5,44 @@ import (
 	"testing"
 )
 
+func TestFindMin(t *testing.T) {
+	tests := map[string]struct {
+		vec  []int
+		want int
+	}{
+		"0 to 5":  {vec: []int{0, 1, 2, 3, 4, 5}, want: 0},
+		"-2 to 2": {vec: []int{-2, -1, 0, 1, 2}, want: -2},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := findMin(test.vec)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}
+
+func TestFindMax(t *testing.T) {
+	tests := map[string]struct {
+		vec  []int
+		want int
+	}{
+		"0 to 5":  {vec: []int{0, 1, 2, 3, 4, 5}, want: 5},
+		"-2 to 2": {vec: []int{-2, -1, 0, 1, 2}, want: 2},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := findMax(test.vec)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}
+
 func TestMakeRange(t *testing.T) {
 	tests := map[string]struct {
 		min  int

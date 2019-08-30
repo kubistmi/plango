@@ -11,7 +11,8 @@ const (
 	NumSchedules = 5
 )
 
-// finMin ...
+// findMin ...
+// TODO: packafe utils
 func findMin(vec []int) int {
 	var min int
 	for ix, val := range vec {
@@ -22,6 +23,20 @@ func findMin(vec []int) int {
 	return min
 }
 
+// findMax ...
+// TODO: packafe utils
+func findMax(vec []int) int {
+	var max int
+	for ix, val := range vec {
+		if ix == 0 || val > max {
+			max = val
+		}
+	}
+	return max
+}
+
+// makeRange ...
+// TODO: package utils
 func makeRange(min, max int) ([]int, error) {
 	if min >= max {
 		return []int{}, fmt.Errorf("The parameter `max` must be strictly larger than parameter `min`")
@@ -35,21 +50,28 @@ func makeRange(min, max int) ([]int, error) {
 }
 
 // PartLimits ...
+// TODO: file schedule
 var PartLimits = map[string][2]int{
-	"Second":   [2]int{0, 59},
-	"Minute":   [2]int{0, 59},
-	"Hour":     [2]int{0, 23},
-	"WeekDay":  [2]int{0, 6},
-	"MonthDay": [2]int{1, 31},
-	"Month":    [2]int{1, 12},
+	"second":   [2]int{0, 59},
+	"minute":   [2]int{0, 59},
+	"hour":     [2]int{0, 23},
+	"weekDay":  [2]int{0, 6},
+	"monthDay": [2]int{1, 31},
+	"month":    [2]int{1, 12},
 }
 
+// PartOrder ...
+// TODO: file schedule
+var PartOrder = []string{"second", "minute", "hour", "weekDay", "monthDay", "month"}
+
 // Schedule ...
+// TODO: file schedule
 type Schedule struct {
 	Second, Minute, Hour, WeekDay, MonthDay, Month ParsedPart
 }
 
 // ParsedPart ...
+// TODO: file schedule
 type ParsedPart struct {
 	Any  bool
 	Min  int
@@ -71,12 +93,12 @@ func CompareTime(sched ParsedPart, dt int,  int) int {
 	} else if sched.Min + sched.Max != 0 {
 	}
 }
-*/
 
 // CompareTime ...
-func CompareTime(sched ParsedPart, dt int) (int, int) {
+func CompareTime(sched ParsedPart, timepart int) (int, int) {
 	if sched.Any {
-		return dt, 0
+		// timepart originates from time.Time so it's valid time value => safe to return
+		return timepart, 0
 	}
 
 	var vec []int
@@ -90,7 +112,7 @@ func CompareTime(sched ParsedPart, dt int) (int, int) {
 		}
 	}
 	for _, val := range vec {
-		if val >= dt {
+		if val >= timepart {
 			return val, 0
 		}
 	}
@@ -110,8 +132,6 @@ func (s Schedule) Next(After time.Time) time.Time {
 	return time.Now()
 
 }
-
-//NewSchedule("{s:,m:,h:,wd:,md:,m:}")
 
 // Job contains the task definition
 type Job struct {
@@ -152,11 +172,6 @@ func CreateJob(Name string, Plan Schedule, Command string, Args []string, Config
 
 	return (NewJob)
 
-}
-
-// ParseSchedule finds the time that the Job should be executed
-func ParseSchedule(Schedule string) time.Time {
-	return time.Now()
 }
 
 func main() {

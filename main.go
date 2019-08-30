@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -80,18 +83,118 @@ type ParsedPart struct {
 	Type string
 }
 
-/*
-func CompareTime(sched ParsedPart, dt int,  int) int {
-	if sched.Any {
-		return dt
-	} else if Len(sched.List) > 0 {
-		for _, val := range sched.List {
-			if val >= dt {
-				return(val)
-			}
-		}
-	} else if sched.Min + sched.Max != 0 {
+// CheckSchedule ...
+// TODO: file schedule
+func CheckSchedule(min, max int, p string, partLim [2]int) error {
+
+	if min >= max {
+		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` >= `max`. Expects %v >= %v from string %s",
+			min, max, p)
 	}
+
+	if !(min >= partLim[0] && min <= partLim[1] && max >= partLim[0] && max <= partLim[1]) {
+		return fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v",
+			partLim[0], partLim[1], min, max)
+	}
+	return nil
+}
+
+// ParseSchedule ...
+func ParseSchedule(schedule string) (Schedule, error) {
+
+	res := make(map[string]ParsedPart)
+
+	parts := strings.Split(schedule, " ")
+
+	if lenParts := len(parts); lenParts != len(PartOrder) {
+		return Schedule{},
+			fmt.Errorf("Incorrect number of fields, expected 6 got %v. Fields are separated by a space and the whitespace can't be used for any other purpose", lenParts)
+	}
+
+	// process part-by-part
+	for ix, p := range parts {
+		part := new(ParsedPart)
+		var err error
+
+		partType := PartOrder[ix]
+		partLim := PartLimits[partType]
+
+		switch {
+		case strings.Contains(p, "*"):
+			part.Any = true
+
+		case strings.Contains(p, "-"):
+			lims := strings.Split(p, "-")
+
+			if lenLim := len(lims); lenLim != 2 {
+				return Schedule{},
+					fmt.Errorf("Incorrect format of range. Expected 2 values separated by `-`, got %v", lenLim)
+			}
+
+			limsI := make([]int, len(lims))
+			for ix, val := range lims {
+				limsI[ix], err = strconv.Atoi(val)
+				if err != nil {
+					return Schedule{},
+						fmt.Errorf("Unable to convert %s to an integer", val)
+				}
+			}
+
+			min := findMin(limsI)
+			max := findMax(limsI)
+
+			err = CheckSchedule(min, max, p, partLim)
+			if err != nil {
+				return Schedule{}, err
+			}
+			part.Min = min
+			part.Max = max
+
+		case strings.Contains(p, ","):
+			list := strings.Split(p, ",")
+
+			listI := make([]int, len(list))
+
+			for ix, val := range list {
+				listI[ix], err = strconv.Atoi(val)
+				if err != nil {
+					return Schedule{}, fmt.Errorf("Unable to convert %s to an integer", val)
+				}
+			}
+
+			min := findMin(listI)
+			max := findMax(listI)
+
+			err = CheckSchedule(min, max, p, partLim)
+			if err != nil {
+				return Schedule{}, err
+			}
+
+			sort.Ints(listI)
+			part.List = listI
+		default:
+			pI, err := strconv.Atoi(p)
+			if err != nil {
+				return Schedule{}, fmt.Errorf("Unable to parse part of schedule: %s", p)
+			}
+			err = CheckSchedule(pI, partLim[1], p, partLim)
+			if err != nil {
+				return Schedule{}, err
+			}
+			part.List = []int{pI}
+		}
+		res[partType] = *part
+	}
+
+	return Schedule{
+		Second:   res["second"],
+		Minute:   res["minute"],
+		Hour:     res["hour"],
+		WeekDay:  res["weekDay"],
+		MonthDay: res["monthDay"],
+		Month:    res["month"],
+	}, nil
+
 }
 
 // CompareTime ...

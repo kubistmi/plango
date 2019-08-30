@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -58,6 +59,74 @@ func TestMakeRange(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got, err := makeRange(test.min, test.max)
 			if !reflect.DeepEqual(test.want, got) && !reflect.DeepEqual(test.err, err != nil) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}
+
+func TestCheckSchedule(t *testing.T) {
+	tests := map[string]struct {
+		min     int
+		max     int
+		p       string
+		partLim [2]int
+		want    error
+	}{
+		"correct (minute)":     {min: 0, max: 5, p: "0-5", partLim: [2]int{0, 59}, want: nil},
+		"min >= max (weekDay)": {min: 6, max: 5, p: "6,5", partLim: [2]int{0, 6}, want: fmt.Errorf("The ranges must be defined as 'min-max' with `min` >= `max`. Expects %v >= %v from string %s", 6, 5, "6,5")},
+		"min lower (monthDay)": {min: 0, max: 25, p: "0-25", partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v", 1, 31, 0, 25)},
+		"max higher (month)":   {min: 5, max: 13, p: "5-13", partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v", 1, 12, 5, 13)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := CheckSchedule(test.min, test.max, test.p, test.partLim)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}
+
+//func ParseSchedule(schedule string) (Schedule, error)
+func TestParseSchedule(t *testing.T) {
+
+	every := ParsedPart{
+		Any: true,
+	}
+
+	everySecond := Schedule{
+		Second:   every,
+		Minute:   every,
+		Hour:     every,
+		WeekDay:  every,
+		MonthDay: every,
+		Month:    every,
+	}
+
+	minutesMonday := Schedule{
+		Second:   ParsedPart{List: []int{0}},
+		Minute:   ParsedPart{Min: 2, Max: 5},
+		Hour:     every,
+		WeekDay:  ParsedPart{List: []int{0}},
+		MonthDay: every,
+		Month:    every,
+	}
+
+	tests := map[string]struct {
+		sch  string
+		want Schedule
+	}{
+		"every second":            {sch: "* * * * * *", want: everySecond},
+		"range minutes on Monday": {sch: "0 2-5 * 0 * *", want: minutesMonday},
+		//TODO: many more tests!
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, _ := ParseSchedule(test.sch)
+			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
 			}
 		})

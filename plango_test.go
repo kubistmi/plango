@@ -58,8 +58,11 @@ func TestMakeRange(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			got, err := makeRange(test.min, test.max)
-			if !reflect.DeepEqual(test.want, got) && !reflect.DeepEqual(test.err, err != nil) {
+			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+			if !reflect.DeepEqual(test.err, err != nil) {
+				t.Fatalf("Expected no error, got: %#v", err)
 			}
 		})
 	}
@@ -155,19 +158,22 @@ func TestParseSchedule(t *testing.T) {
 	tests := map[string]struct {
 		sch  string
 		want Schedule
+		err  error
 	}{
-		"every second":                   {sch: "* * * * * *", want: everySecond},
-		"range minutes on Monday":        {sch: "0 2-5 * 0 * *", want: minutesMonday},
-		"specific time on 5th January ":  {sch: "0 30 12 * 5 1", want: specific},
-		"list hours every 31th monthDay": {sch: "0 0 3,5,6 * 31 *", want: listHours},
-		//TODO: many more tests!
+		"every second":                   {sch: "* * * * * *", want: everySecond, err: nil},
+		"range minutes on Monday":        {sch: "0 2-5 * 0 * *", want: minutesMonday, err: nil},
+		"specific time on 5th January ":  {sch: "0 30 12 * 5 1", want: specific, err: nil},
+		"list hours every 31th monthDay": {sch: "0 0 3,5,6 * 31 *", want: listHours, err: nil},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, _ := ParseSchedule(test.sch)
+			got, err := ParseSchedule(test.sch)
 			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+			if !reflect.DeepEqual(test.err, err) {
+				t.Fatalf("Expected: %#v, got: %#v", test.err, err)
 			}
 		})
 	}

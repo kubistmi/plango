@@ -94,7 +94,7 @@ func TestCheckSchedule(t *testing.T) {
 		want    error
 	}{
 		"correct (minute)":     {min: 0, max: 5, p: "0-5", partLim: [2]int{0, 59}, want: nil},
-		"min >= max (weekDay)": {min: 6, max: 5, p: "6,5", partLim: [2]int{0, 6}, want: fmt.Errorf("The ranges must be defined as 'min-max' with `min` >= `max`. Expects %v >= %v from string %s", 6, 5, "6,5")},
+		"min > max (weekDay)":  {min: 6, max: 5, p: "6-5", partLim: [2]int{0, 6}, want: fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s", 6, 5, "6-5")},
 		"min lower (monthDay)": {min: 0, max: 25, p: "0-25", partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v", 1, 31, 0, 25)},
 		"max higher (month)":   {min: 5, max: 13, p: "5-13", partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v", 1, 12, 5, 13)},
 	}
@@ -134,12 +134,32 @@ func TestParseSchedule(t *testing.T) {
 		Month:    every,
 	}
 
+	specific := Schedule{
+		Second:   ParsedPart{List: []int{0}},
+		Minute:   ParsedPart{List: []int{30}},
+		Hour:     ParsedPart{List: []int{12}},
+		WeekDay:  every,
+		MonthDay: ParsedPart{List: []int{5}},
+		Month:    ParsedPart{List: []int{1}},
+	}
+
+	listHours := Schedule{
+		Second:   ParsedPart{List: []int{0}},
+		Minute:   ParsedPart{List: []int{0}},
+		Hour:     ParsedPart{List: []int{3, 5, 6}},
+		WeekDay:  every,
+		MonthDay: ParsedPart{List: []int{31}},
+		Month:    every,
+	}
+
 	tests := map[string]struct {
 		sch  string
 		want Schedule
 	}{
-		"every second":            {sch: "* * * * * *", want: everySecond},
-		"range minutes on Monday": {sch: "0 2-5 * 0 * *", want: minutesMonday},
+		"every second":                   {sch: "* * * * * *", want: everySecond},
+		"range minutes on Monday":        {sch: "0 2-5 * 0 * *", want: minutesMonday},
+		"specific time on 5th January ":  {sch: "0 30 12 * 5 1", want: specific},
+		"list hours every 31th monthDay": {sch: "0 0 3,5,6 * 31 *", want: listHours},
 		//TODO: many more tests!
 	}
 

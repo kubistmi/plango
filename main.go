@@ -82,12 +82,6 @@ var PartLimits = map[string][2]int{
 // TODO: file schedule
 var PartOrder = []string{"second", "minute", "hour", "weekDay", "monthDay", "month"}
 
-// Schedule ...
-// TODO: file schedule
-type Schedule struct {
-	Second, Minute, Hour, WeekDay, MonthDay, Month ParsedPart
-}
-
 // ParsedPart ...
 // TODO: file schedule
 type ParsedPart struct {
@@ -98,12 +92,18 @@ type ParsedPart struct {
 	Type string
 }
 
+// Schedule ...
+// TODO: file schedule
+type Schedule struct {
+	Second, Minute, Hour, WeekDay, MonthDay, Month ParsedPart
+}
+
 // CheckSchedule ...
 // TODO: file schedule
 func CheckSchedule(min, max int, p string, partLim [2]int) error {
 
-	if min >= max {
-		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` >= `max`. Expects %v >= %v from string %s",
+	if min > max {
+		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s",
 			min, max, p)
 	}
 
@@ -188,6 +188,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 			// sort and keep unique only
 			sort.Ints(listI)
 			part.List = findUnique(listI)
+
 		default:
 			pI, err := strconv.Atoi(p)
 			if err != nil {

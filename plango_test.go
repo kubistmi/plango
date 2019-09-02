@@ -65,6 +65,26 @@ func TestMakeRange(t *testing.T) {
 	}
 }
 
+func TestFindUnique(t *testing.T) {
+	tests := map[string]struct {
+		vec  []int
+		want []int
+	}{
+		"all unique":     {vec: []int{0, 1, 2, 3, 4}, want: []int{0, 1, 2, 3, 4}},
+		"all same":       {vec: []int{1, 1, 1, 1}, want: []int{1}},
+		"few duplicates": {vec: []int{0, 0, 1, 4, 4, 4}, want: []int{0, 1, 4}},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := findUnique(test.vec)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}
+
 func TestCheckSchedule(t *testing.T) {
 	tests := map[string]struct {
 		min     int

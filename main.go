@@ -52,6 +52,21 @@ func makeRange(min, max int) ([]int, error) {
 	return vec, nil
 }
 
+//findUnique
+// TODO: package utils
+func findUnique(vec []int) []int {
+	unique := make([]int, 0, len(vec))
+	mapper := make(map[int]bool)
+
+	for _, val := range vec {
+		if _, ok := mapper[val]; !ok {
+			mapper[val] = true
+			unique = append(unique, val)
+		}
+	}
+	return unique
+}
+
 // PartLimits ...
 // TODO: file schedule
 var PartLimits = map[string][2]int{
@@ -170,8 +185,9 @@ func ParseSchedule(schedule string) (Schedule, error) {
 				return Schedule{}, err
 			}
 
+			// sort and keep unique only
 			sort.Ints(listI)
-			part.List = listI
+			part.List = findUnique(listI)
 		default:
 			pI, err := strconv.Atoi(p)
 			if err != nil {

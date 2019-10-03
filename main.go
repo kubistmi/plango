@@ -82,42 +82,139 @@ var PartLimits = map[string][2]int{
 // TODO: file schedule
 var PartOrder = []string{"second", "minute", "hour", "weekDay", "monthDay", "month"}
 
-// ParsedPart ...
+// SchedulePart ...
 // TODO: file schedule
-type ParsedPart struct {
-	Any  bool
-	Min  int
-	Max  int
-	List []int
-	Type string
+type SchedulePart interface {
+	checkPart(partLim [2]int) error
+	compareTime(timepart int) (int, int)
+	getOrigin() string
 }
 
 // Schedule ...
 // TODO: file schedule
-type Schedule struct {
-	Second, Minute, Hour, WeekDay, MonthDay, Month ParsedPart
+type Schedule struct{ Second, Minute, Hour, WeekDay, MonthDay, Month SchedulePart }
+
+// PartAny defines schedule based on the string "*". This definition will trigger on every occurence it can.
+// E.g. using * in monthDays field means the job will be run every day of the month (with regard to other definitions, such as weekDay).
+type PartAny struct {
+	Text string
 }
 
-// CheckSchedule ...
+// PartInterval defines schedule based on the string "x-y". This definition will trigger on every occurence in this interval.
+// E.g. using 4-6 in hours field means the job will be run at hours 4, 5 and 6 (with regard to other definitions).
+type PartInterval struct {
+	Min, Max int
+	Text     string
+}
+
+// PartList defines schedule based on the string "x,y,y". This definition will trigger on every occurence listed in the definition.
+// E.g. using 4,6,20 in minutes field means the job will be run at minutes 4, 6 and 20 (with regard to other definitions).
+type PartList struct {
+	List []int
+	Text string
+}
+
+// ---------------------- GET ORIGIN -------------------------------------------------------------------
+func (sp PartAny) getOrigin() string {
+	return sp.Text
+}
+
+func (sp PartInterval) getOrigin() string {
+	return sp.Text
+}
+
+func (sp PartList) getOrigin() string {
+	return sp.Text
+}
+
+// ---------------------- COMPARE TIME -----------------------------------------------------------------
+
+// compareTime ...
+func (sp PartAny) compareTime(timepart int) (int, int) {
+	// timepart originates from time.Time so it's valid time value => safe to return
+	return timepart, 0
+}
+
+func (sp PartInterval) compareTime(timepart int) (int, int) {
+	var vec []int
+	var err error
+
+	vec, err = makeRange(sp.Min, sp.Max)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// find time value higher than or equal current time
+	// e.g. schedule = "0 0 5-7 * * *" ; current = 2019-10-12 06:00:00
+	//      return 2019-10-12 06:00:00
+	for _, val := range vec {
+		if val >= timepart {
+			return val, 0
+		}
+	}
+
+	// if no such value, choose the next (the smallest one) and shift the time
+	// e.g. schedule = "0 0 2-5 * * *" ; current = 2019-10-12 06:00:00
+	//      return 2019-10-13 02:00:00
+	return sp.Min, 1
+}
+
+func (sp PartList) compareTime(timepart int) (int, int) {
+	// find time value higher than or equal current time
+	// e.g. schedule = "0 0 5,6 * * *" ; current = 2019-10-12 06:00:00
+	//      return 2019-10-12 06:00:00
+	for _, val := range sp.List {
+		if val >= timepart {
+			return val, 0
+		}
+	}
+
+	// if no such value, choose the next (the smallest one) and shift the time
+	// e.g. schedule = "0 0 2,3,4 * * *" ; current = 2019-10-12 06:00:00
+	//      return 2019-10-13 02:00:00
+	return findMin(sp.List), 1
+}
+
+// ---------------------- CHECK PART ---------------------------------------------------------------
+
+// checkPart ...
 // TODO: file schedule
-func CheckSchedule(min, max int, p string, partLim [2]int) error {
+func (sp PartAny) checkPart(partLim [2]int) error {
+	return nil
+}
+
+func (sp PartInterval) checkPart(partLim [2]int) error {
+	if sp.Min > sp.Max {
+		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s",
+			sp.Min, sp.Max, sp.Text)
+	}
+	if !(sp.Min >= partLim[0] && sp.Min <= partLim[1] && sp.Max >= partLim[0] && sp.Max <= partLim[1]) {
+		return fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s",
+			partLim[0], partLim[1], sp.Min, sp.Max, sp.Text)
+	}
+	return nil
+}
+
+func (sp PartList) checkPart(partLim [2]int) error {
+	min := findMin(sp.List)
+	max := findMax(sp.List)
 
 	if min > max {
 		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s",
-			min, max, p)
+			min, max, sp.Text)
 	}
-
 	if !(min >= partLim[0] && min <= partLim[1] && max >= partLim[0] && max <= partLim[1]) {
-		return fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v",
-			partLim[0], partLim[1], min, max)
+		return fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s",
+			partLim[0], partLim[1], min, max, sp.Text)
 	}
 	return nil
+
 }
 
 // ParseSchedule ...
 func ParseSchedule(schedule string) (Schedule, error) {
 
-	res := make(map[string]ParsedPart)
+	res := make(map[string]SchedulePart)
 
 	parts := strings.Split(schedule, " ")
 
@@ -128,7 +225,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 
 	// process part-by-part
 	for ix, p := range parts {
-		part := new(ParsedPart)
+		var part SchedulePart
 		var err error
 
 		partType := PartOrder[ix]
@@ -136,7 +233,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 
 		switch {
 		case strings.Contains(p, "*"):
-			part.Any = true
+			part = PartAny{Text: p}
 
 		case strings.Contains(p, "-"):
 			lims := strings.Split(p, "-")
@@ -158,12 +255,11 @@ func ParseSchedule(schedule string) (Schedule, error) {
 			min := findMin(limsI)
 			max := findMax(limsI)
 
-			err = CheckSchedule(min, max, p, partLim)
-			if err != nil {
-				return Schedule{}, err
+			part = PartInterval{
+				Text: p,
+				Min:  min,
+				Max:  max,
 			}
-			part.Min = min
-			part.Max = max
 
 		case strings.Contains(p, ","):
 			list := strings.Split(p, ",")
@@ -177,30 +273,24 @@ func ParseSchedule(schedule string) (Schedule, error) {
 				}
 			}
 
-			min := findMin(listI)
-			max := findMax(listI)
-
-			err = CheckSchedule(min, max, p, partLim)
-			if err != nil {
-				return Schedule{}, err
-			}
-
 			// sort and keep unique only
 			sort.Ints(listI)
-			part.List = findUnique(listI)
+			part = PartList{Text: p, List: findUnique(listI)}
 
 		default:
 			pI, err := strconv.Atoi(p)
 			if err != nil {
 				return Schedule{}, fmt.Errorf("Unable to parse part of schedule: %s", p)
 			}
-			err = CheckSchedule(pI, partLim[1], p, partLim)
-			if err != nil {
-				return Schedule{}, err
-			}
-			part.List = []int{pI}
+
+			part = PartList{Text: p, List: []int{pI}}
 		}
-		res[partType] = *part
+		err = part.checkPart(partLim)
+		if err != nil {
+			return Schedule{}, err
+		}
+
+		res[partType] = part
 	}
 
 	return Schedule{
@@ -211,32 +301,6 @@ func ParseSchedule(schedule string) (Schedule, error) {
 		MonthDay: res["monthDay"],
 		Month:    res["month"],
 	}, nil
-
-}
-
-// CompareTime ...
-func CompareTime(sched ParsedPart, timepart int) (int, int) {
-	if sched.Any {
-		// timepart originates from time.Time so it's valid time value => safe to return
-		return timepart, 0
-	}
-
-	var vec []int
-	var err error
-	if len(sched.List) > 0 {
-		vec = sched.List
-	} else if sched.Min+sched.Max != 0 {
-		vec, err = makeRange(sched.Min, sched.Max)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	for _, val := range vec {
-		if val >= timepart {
-			return val, 0
-		}
-	}
-	return findMin(vec), 1
 
 }
 
@@ -295,5 +359,5 @@ func CreateJob(Name string, Plan Schedule, Command string, Args []string, Config
 }
 
 func main() {
-	fmt.Println(PartLimits)
+	fmt.Println("Build sucesfully!")
 }

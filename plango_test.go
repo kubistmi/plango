@@ -88,58 +88,15 @@ func TestFindUnique(t *testing.T) {
 	}
 }
 
-func TestAnyCheckSchedule(t *testing.T) {
+func TestCheckSchedule(t *testing.T) {
 
 	partAll := PartAny{Text: "*"}
-
-	tests := map[string]struct {
-		part    PartAny
-		partLim [2]int
-		want    error
-	}{
-		"no error (ever)": {part: partAll, partLim: [2]int{0, 59}, want: nil},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := test.part.checkPart(test.partLim)
-			if !reflect.DeepEqual(test.want, got) {
-				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
-			}
-		})
-	}
-}
-
-func TestIntervalCheckSchedule(t *testing.T) {
-
+	// intervals
 	int05 := PartInterval{Text: "0-5", Min: 0, Max: 5}
 	int65 := PartInterval{Text: "6-5", Min: 6, Max: 5}
 	int25 := PartInterval{Text: "0-25", Min: 0, Max: 25}
 	int513 := PartInterval{Text: "5-13", Min: 5, Max: 13}
-
-	tests := map[string]struct {
-		part    SchedulePart
-		partLim [2]int
-		want    error
-	}{
-		"correct (minute)":     {part: int05, partLim: [2]int{0, 59}, want: nil},
-		"min > max (weekDay)":  {part: int65, partLim: [2]int{0, 6}, want: fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s", 6, 5, int65.Text)},
-		"min lower (monthDay)": {part: int25, partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, 0, 25, int25.Text)},
-		"max higher (month)":   {part: int513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, 5, 13, int513.Text)},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := test.part.checkPart(test.partLim)
-			if !reflect.DeepEqual(test.want, got) {
-				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
-			}
-		})
-	}
-}
-
-func TestListCheckSchedule(t *testing.T) {
-
+	// lists
 	list50 := PartList{Text: "0,50", List: []int{0, 50}}
 	list42 := PartList{Text: "4,2", List: []int{4, 2}}
 	listSingle := PartList{Text: "23", List: []int{23}}
@@ -151,11 +108,16 @@ func TestListCheckSchedule(t *testing.T) {
 		partLim [2]int
 		want    error
 	}{
-		"correct (minute)":    {part: list50, partLim: [2]int{0, 59}, want: nil},
-		"min > max (weekDay)": {part: list42, partLim: [2]int{0, 6}, want: nil},
-		"single value (hour)": {part: listSingle, partLim: [2]int{0, 23}, want: nil},
-		"min lower (month)":   {part: list09, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, 0, 9, list09.Text)},
-		"max higher (month)":  {part: list513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, 5, 15, list513.Text)},
+		"any: no error (ever)":           {part: partAll, partLim: [2]int{0, 59}, want: nil},
+		"interval: correct (minute)":     {part: int05, partLim: [2]int{0, 59}, want: nil},
+		"interval: min > max (weekDay)":  {part: int65, partLim: [2]int{0, 6}, want: fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s", int65.Min, int65.Max, int65.Text)},
+		"interval: min lower (monthDay)": {part: int25, partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, int25.Min, int25.Max, int25.Text)},
+		"interval: max higher (month)":   {part: int513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, int513.Min, int513.Max, int513.Text)},
+		"list: correct (minute)":         {part: list50, partLim: [2]int{0, 59}, want: nil},
+		"list: min > max (weekDay)":      {part: list42, partLim: [2]int{0, 6}, want: nil},
+		"list: single value (hour)":      {part: listSingle, partLim: [2]int{0, 23}, want: nil},
+		"list: min lower (month)":        {part: list09, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, 0, 9, list09.Text)},
+		"list: max higher (month)":       {part: list513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, 5, 15, list513.Text)},
 	}
 
 	for name, test := range tests {
@@ -239,59 +201,21 @@ func TestParseSchedule(t *testing.T) {
 	}
 }
 
-func TestAnyCompareTime(t *testing.T) {
+func TestCompareTime(t *testing.T) {
 	tests := map[string]struct {
 		sched     SchedulePart
 		dt        int
 		want      int
 		wantShift int
 	}{
-		"no-shift zero":       {sched: PartAny{Text: "*"}, dt: 0, want: 0, wantShift: 0},
-		"no-shift fifty-nine": {sched: PartAny{Text: "*"}, dt: 59, want: 59, wantShift: 0},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			got, shift := test.sched.compareTime(test.dt)
-			if !reflect.DeepEqual(test.want, got) && !reflect.DeepEqual(test.wantShift, shift) {
-				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
-			}
-		})
-	}
-}
-
-func TestIntervalCompareTime(t *testing.T) {
-	tests := map[string]struct {
-		sched     SchedulePart
-		dt        int
-		want      int
-		wantShift int
-	}{
-		"no-shift in set": {sched: PartInterval{Text: "0-3", Min: 0, Max: 3}, dt: 2, want: 2, wantShift: 0},
-		"no-shift lower":  {sched: PartInterval{Text: "0-3", Min: 5, Max: 10}, dt: 2, want: 5, wantShift: 0},
-		"shift higher":    {sched: PartInterval{Text: "4-9", Min: 4, Max: 9}, dt: 10, want: 4, wantShift: 1},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			got, shift := test.sched.compareTime(test.dt)
-			if !reflect.DeepEqual(test.want, got) && !reflect.DeepEqual(test.wantShift, shift) {
-				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
-			}
-		})
-	}
-}
-
-func TestListCompareTime(t *testing.T) {
-	tests := map[string]struct {
-		sched     PartList
-		dt        int
-		want      int
-		wantShift int
-	}{
-		"no-shift exact": {sched: PartList{Text: "27", List: []int{27}}, dt: 27, want: 27, wantShift: 0},
-		"no-shift lower": {sched: PartList{Text: "50,55", List: []int{50, 55}}, dt: 30, want: 50, wantShift: 0},
-		"shift higher":   {sched: PartList{Text: "10,13,17", List: []int{10, 13, 17}}, dt: 23, want: 10, wantShift: 1},
+		"any: no-shift zero":        {sched: PartAny{Text: "*"}, dt: 0, want: 0, wantShift: 0},
+		"any: no-shift fifty-nine":  {sched: PartAny{Text: "*"}, dt: 59, want: 59, wantShift: 0},
+		"interval: no-shift in set": {sched: PartInterval{Text: "0-3", Min: 0, Max: 3}, dt: 2, want: 2, wantShift: 0},
+		"interval: no-shift lower":  {sched: PartInterval{Text: "5-10", Min: 5, Max: 10}, dt: 2, want: 5, wantShift: 0},
+		"interval: shift higher":    {sched: PartInterval{Text: "4-9", Min: 4, Max: 9}, dt: 10, want: 4, wantShift: 1},
+		"list: no-shift exact":      {sched: PartList{Text: "27", List: []int{27}}, dt: 27, want: 27, wantShift: 0},
+		"list: no-shift lower":      {sched: PartList{Text: "50,55", List: []int{50, 55}}, dt: 30, want: 50, wantShift: 0},
+		"list: shift higher":        {sched: PartList{Text: "10,13,17", List: []int{10, 13, 17}}, dt: 23, want: 10, wantShift: 1},
 	}
 
 	for name, test := range tests {

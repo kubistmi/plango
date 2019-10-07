@@ -306,15 +306,27 @@ func ParseSchedule(schedule string) (Schedule, error) {
 
 // Next ...
 func (s Schedule) Next(After time.Time) time.Time {
+	var nxtSecond, nxtMinute, nxtHour, nxtMday, nxtMonth, nxtYear int //nxtWday,
+	var shift int
 
-	After.Second()
-	After.Minute()
-	After.Hour()
-	After.Weekday()
-	After.Day()
-	After.Month()
-	return time.Now()
+	next := After
 
+	nxtSecond, shift = s.Second.compareTime(next.Second())
+	next = next.Add(time.Minute * time.Duration(shift))
+
+	nxtMinute, shift = s.Minute.compareTime(next.Minute())
+	next = next.Add(time.Hour * time.Duration(shift))
+
+	nxtHour, shift = s.Hour.compareTime(next.Hour())
+	next = next.AddDate(0, 0, shift)
+		nxtMday, shift = s.MonthDay.compareTime(next.Day())
+
+	next = next.AddDate(0, shift, 0)
+
+	nxtMonth, shift = s.Month.compareTime(int(next.Month()))
+	nxtYear = next.Year() + shift
+
+	return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local)
 }
 
 // Job contains the task definition

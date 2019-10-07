@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestFindMin(t *testing.T) {
@@ -182,10 +183,11 @@ func TestParseSchedule(t *testing.T) {
 		"error monthDay too high":        {sch: "0 0 12 * 32 *", want: Schedule{}, err: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, 32, 32, "32")},
 		"error too many fields":          {sch: "0 0 0 0 0 0 *", want: Schedule{}, err: fmt.Errorf("Incorrect number of fields, expected 6 got %v. Fields are separated by a space and the whitespace can't be used for any other purpose", 7)},
 		"error wrong range":              {sch: "0 0 12-18-10 0 0 *", want: Schedule{}, err: fmt.Errorf("Incorrect format of range. Expected 2 values separated by `-`, got %v", 3)},
-		"error single non-convertibl":    {sch: "a b c d e *", want: Schedule{}, err: fmt.Errorf("Unable to parse part of schedule: %s", "a")},
+		"error single non-convertible":   {sch: "a b c d e *", want: Schedule{}, err: fmt.Errorf("Unable to parse part of schedule: %s", "a")},
 		"error non-convertible range":    {sch: "0 0 0 0 12-18a *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "18a")},
 		"error non-convertible list":     {sch: "0 0 0 0 12,1a *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "1a")},
 		"error list and range":           {sch: "0 11-15,16 0 0 0 *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "15,16")},
+		"error range and list":           {sch: "0 9,17-20 0 0 0 *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "9,17")},
 	}
 
 	for name, test := range tests {
@@ -226,4 +228,59 @@ func TestCompareTime(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNext(t *testing.T) {
+
+	every := PartAny{Text: "*"}
+
+	everySecond := Schedule{
+		Second:   every,
+		Minute:   every,
+		Hour:     every,
+		WeekDay:  every,
+		MonthDay: every,
+		Month:    every,
+	}
+
+	specificMDHMS := Schedule{
+		Second:   PartList{Text: "0", List: []int{0}},
+		Minute:   PartList{Text: "30", List: []int{30}},
+		Hour:     PartList{Text: "12", List: []int{12}},
+		WeekDay:  every,
+		MonthDay: PartList{Text: "5", List: []int{5}},
+		Month:    PartList{Text: "1", List: []int{1}},
+	}
+
+	specificHMS := Schedule{
+		Second:   PartList{Text: "55", List: []int{55}},
+		Minute:   PartInterval{Text: "46-50", Min: 46, Max: 50},
+		Hour:     PartInterval{Text: "16-20", Min: 16, Max: 20},
+		WeekDay:  every,
+		MonthDay: every,
+		Month:    every,
+	}
+
+	tests := map[string]struct {
+		sched Schedule
+		after time.Time
+		want  time.Time
+	}{
+		"this second":   {sched: everySecond, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local)},
+		"next year":     {sched: specificMDHMS, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2020, time.Month(1), 5, 12, 30, 0, 0, time.Local)},
+		"in 10 minutes": {sched: specificHMS, after: time.Date(2019, time.Month(3), 25, 16, 35, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 16, 46, 55, 0, time.Local)},
+		"in an hour":    {sched: specificHMS, after: time.Date(2019, time.Month(3), 25, 16, 51, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 17, 46, 55, 0, time.Local)},
+		"in 5 seconds":  {sched: specificHMS, after: time.Date(2019, time.Month(3), 25, 20, 48, 53, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 20, 48, 55, 0, time.Local)},
+		"tomorrow":      {sched: specificHMS, after: time.Date(2019, time.Month(3), 25, 21, 8, 6, 0, time.Local), want: time.Date(2019, time.Month(3), 26, 16, 46, 55, 0, time.Local)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := test.sched.Next(test.after)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %v, got: %v", test.want, got)
+			}
+		})
+	}
+
 }

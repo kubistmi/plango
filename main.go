@@ -319,14 +319,56 @@ func (s Schedule) Next(After time.Time) time.Time {
 
 	nxtHour, shift = s.Hour.compareTime(next.Hour())
 	next = next.AddDate(0, 0, shift)
+
+	// day is a little bit more fun
+	switch s.WeekDay.(type) {
+
+	case PartAny:
 		nxtMday, shift = s.MonthDay.compareTime(next.Day())
+		next = next.AddDate(0, shift, 0)
 
-	next = next.AddDate(0, shift, 0)
+		nxtMonth, shift = s.Month.compareTime(int(next.Month()))
+		nxtYear = next.Year() + shift
+		return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local)
 
-	nxtMonth, shift = s.Month.compareTime(int(next.Month()))
-	nxtYear = next.Year() + shift
+	default:
+		var wdList []int
 
-	return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local)
+		switch v := s.WeekDay.(type) {
+		case PartInterval:
+			wdList, _ = makeRange(v.Min, v.Max)
+
+		case PartList:
+			wdList = v.List
+		}
+
+		iter := len(wdList) * 53
+
+		next = time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local)
+		var wdMday, wdNext, wdShift int
+
+		for i := 0; i < iter; i++ {
+			wdNext, wdShift = s.WeekDay.compareTime(int(next.Weekday()))
+
+			if wdShift == 1 {
+				next = next.AddDate(0, 0, 7-int(next.Weekday()))
+			}
+			next = next.AddDate(0, 0, wdNext-int(next.Weekday()))
+
+			wdMday, wdShift = s.MonthDay.compareTime(next.Day())
+
+			if wdShift == 0 && wdMday == int(next.Day()) {
+				return time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local)
+			}
+			if wdShift == 1 {
+				next = next.AddDate(0, 1, wdMday-int(next.Day()))
+
+			} else {
+				next = next.AddDate(0, 0, wdMday-int(next.Day()))
+			}
+		}
+	}
+	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)
 }
 
 // Job contains the task definition
@@ -371,5 +413,5 @@ func CreateJob(Name string, Plan Schedule, Command string, Args []string, Config
 }
 
 func main() {
-	fmt.Println("Build sucesfully!")
+	fmt.Println("Build succesfull!")
 }

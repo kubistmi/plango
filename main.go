@@ -324,6 +324,7 @@ func (s Schedule) Next(After time.Time) time.Time {
 	switch s.WeekDay.(type) {
 
 	case PartAny:
+		// the easy part, for non-specific weekDay, just go through the calendar as above
 		nxtMday, shift = s.MonthDay.compareTime(next.Day())
 		next = next.AddDate(0, shift, 0)
 
@@ -332,42 +333,42 @@ func (s Schedule) Next(After time.Time) time.Time {
 		return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local)
 
 	default:
-		var wdList []int
+		//TODO this should be a config variable
+		iter := 50
 
-		switch v := s.WeekDay.(type) {
-		case PartInterval:
-			wdList, _ = makeRange(v.Min, v.Max)
-
-		case PartList:
-			wdList = v.List
-		}
-
-		iter := len(wdList) * 53
-
+		// update the next timestamp using the found values of H:M:S
 		next = time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local)
 		var wdMday, wdNext, wdShift int
 
 		for i := 0; i < iter; i++ {
+			// first, check whether the weekday is OK
+			// shift by:
+			//    - difference in days
+			//    - difference in weeks * 7
 			wdNext, wdShift = s.WeekDay.compareTime(int(next.Weekday()))
+			next = next.AddDate(0, 0, wdNext-int(next.Weekday())+wdShift*7)
 
-			if wdShift == 1 {
-				next = next.AddDate(0, 0, 7-int(next.Weekday()))
-			}
-			next = next.AddDate(0, 0, wdNext-int(next.Weekday()))
-
+			// then, check the monthDay and month
 			wdMday, wdShift = s.MonthDay.compareTime(next.Day())
+			wdMonth, wdMshift := s.Month.compareTime(int(next.Month()))
 
-			if wdShift == 0 && wdMday == int(next.Day()) {
+			// very greedy early exit, if the monthDay and month are OK, return
+			if wdShift == 0 && wdMday == next.Day() && wdMonth == int(next.Month()) {
 				return time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local)
 			}
-			if wdShift == 1 {
-				next = next.AddDate(0, 1, wdMday-int(next.Day()))
 
+			// if incorrect Schedule.Month, then jump to the next month and ...
+			// else move by one month and ...
+			// ... lowest of the Schedule.MonthDay
+			if wdMshift == 1 {
+				next = next.AddDate(1, wdMonth-int(next.Month()), wdMday-int(next.Day()))
 			} else {
-				next = next.AddDate(0, 0, wdMday-int(next.Day()))
+				next = next.AddDate(0, wdShift, wdMday-int(next.Day()))
 			}
 		}
 	}
+	// default, if nothing found...
+	//TODO refactor to error
 	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)
 }
 

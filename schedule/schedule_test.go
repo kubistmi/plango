@@ -9,21 +9,21 @@ import (
 
 func TestCheckSchedule(t *testing.T) {
 
-	partAll := PartAny{Text: "*"}
+	partAll := partAny{Text: "*"}
 	// intervals
-	int05 := PartInterval{Text: "0-5", Min: 0, Max: 5}
-	int65 := PartInterval{Text: "6-5", Min: 6, Max: 5}
-	int25 := PartInterval{Text: "0-25", Min: 0, Max: 25}
-	int513 := PartInterval{Text: "5-13", Min: 5, Max: 13}
+	int05 := partInterval{Text: "0-5", Min: 0, Max: 5}
+	int65 := partInterval{Text: "6-5", Min: 6, Max: 5}
+	int25 := partInterval{Text: "0-25", Min: 0, Max: 25}
+	int513 := partInterval{Text: "5-13", Min: 5, Max: 13}
 	// lists
-	list50 := PartList{Text: "0,50", List: []int{0, 50}}
-	list42 := PartList{Text: "4,2", List: []int{4, 2}}
-	listSingle := PartList{Text: "23", List: []int{23}}
-	list09 := PartList{Text: "0,9", List: []int{0, 9}}
-	list513 := PartList{Text: "5,6,10,15", List: []int{5, 6, 10, 15}}
+	list50 := partList{Text: "0,50", List: []int{0, 50}}
+	list42 := partList{Text: "4,2", List: []int{4, 2}}
+	listSingle := partList{Text: "23", List: []int{23}}
+	list09 := partList{Text: "0,9", List: []int{0, 9}}
+	list513 := partList{Text: "5,6,10,15", List: []int{5, 6, 10, 15}}
 
 	tests := map[string]struct {
-		part    Part
+		part    part
 		partLim [2]int
 		want    error
 	}{
@@ -51,7 +51,7 @@ func TestCheckSchedule(t *testing.T) {
 
 func TestParseSchedule(t *testing.T) {
 
-	every := PartAny{Text: "*"}
+	every := partAny{Text: "*"}
 
 	everySecond := Schedule{
 		Second:   every,
@@ -63,39 +63,39 @@ func TestParseSchedule(t *testing.T) {
 	}
 
 	minutesMonday := Schedule{
-		Second:   PartList{Text: "0", List: []int{0}},
-		Minute:   PartInterval{Text: "2-5", Min: 2, Max: 5},
+		Second:   partList{Text: "0", List: []int{0}},
+		Minute:   partInterval{Text: "2-5", Min: 2, Max: 5},
 		Hour:     every,
-		WeekDay:  PartList{Text: "0", List: []int{0}},
+		WeekDay:  partList{Text: "0", List: []int{0}},
 		MonthDay: every,
 		Month:    every,
 	}
 
 	specific := Schedule{
-		Second:   PartList{Text: "0", List: []int{0}},
-		Minute:   PartList{Text: "30", List: []int{30}},
-		Hour:     PartList{Text: "12", List: []int{12}},
+		Second:   partList{Text: "0", List: []int{0}},
+		Minute:   partList{Text: "30", List: []int{30}},
+		Hour:     partList{Text: "12", List: []int{12}},
 		WeekDay:  every,
-		MonthDay: PartList{Text: "5", List: []int{5}},
-		Month:    PartList{Text: "1,2", List: []int{1, 2}},
+		MonthDay: partList{Text: "5", List: []int{5}},
+		Month:    partList{Text: "1,2", List: []int{1, 2}},
 	}
 
 	listHours := Schedule{
-		Second:   PartList{Text: "0", List: []int{0}},
-		Minute:   PartList{Text: "0", List: []int{0}},
-		Hour:     PartList{Text: "3,5,6", List: []int{3, 5, 6}},
+		Second:   partList{Text: "0", List: []int{0}},
+		Minute:   partList{Text: "0", List: []int{0}},
+		Hour:     partList{Text: "3,5,6", List: []int{3, 5, 6}},
 		WeekDay:  every,
-		MonthDay: PartList{Text: "31", List: []int{31}},
+		MonthDay: partList{Text: "31", List: []int{31}},
 		Month:    every,
 	}
 
 	intervals := Schedule{
-		Second:   PartInterval{Text: "55-58", Min: 55, Max: 58},
-		Minute:   PartInterval{Text: "23-29", Min: 23, Max: 29},
-		Hour:     PartInterval{Text: "3-6", Min: 3, Max: 6},
-		WeekDay:  PartInterval{Text: "2-5", Min: 2, Max: 5},
-		MonthDay: PartInterval{Text: "24-29", Min: 24, Max: 29},
-		Month:    PartInterval{Text: "1-3", Min: 1, Max: 3},
+		Second:   partInterval{Text: "55-58", Min: 55, Max: 58},
+		Minute:   partInterval{Text: "23-29", Min: 23, Max: 29},
+		Hour:     partInterval{Text: "3-6", Min: 3, Max: 6},
+		WeekDay:  partInterval{Text: "2-5", Min: 2, Max: 5},
+		MonthDay: partInterval{Text: "24-29", Min: 24, Max: 29},
+		Month:    partInterval{Text: "1-3", Min: 1, Max: 3},
 	}
 
 	tests := map[string]struct {
@@ -133,19 +133,19 @@ func TestParseSchedule(t *testing.T) {
 
 func TestCompareTime(t *testing.T) {
 	tests := map[string]struct {
-		sched     Part
+		sched     part
 		dt        int
 		want      int
 		wantShift int
 	}{
-		"any: no-shift zero":        {sched: PartAny{Text: "*"}, dt: 0, want: 0, wantShift: 0},
-		"any: no-shift fifty-nine":  {sched: PartAny{Text: "*"}, dt: 59, want: 59, wantShift: 0},
-		"interval: no-shift in set": {sched: PartInterval{Text: "0-3", Min: 0, Max: 3}, dt: 2, want: 2, wantShift: 0},
-		"interval: no-shift lower":  {sched: PartInterval{Text: "5-10", Min: 5, Max: 10}, dt: 2, want: 5, wantShift: 0},
-		"interval: shift higher":    {sched: PartInterval{Text: "4-9", Min: 4, Max: 9}, dt: 10, want: 4, wantShift: 1},
-		"list: no-shift exact":      {sched: PartList{Text: "27", List: []int{27}}, dt: 27, want: 27, wantShift: 0},
-		"list: no-shift lower":      {sched: PartList{Text: "50,55", List: []int{50, 55}}, dt: 30, want: 50, wantShift: 0},
-		"list: shift higher":        {sched: PartList{Text: "10,13,17", List: []int{10, 13, 17}}, dt: 23, want: 10, wantShift: 1},
+		"any: no-shift zero":        {sched: partAny{Text: "*"}, dt: 0, want: 0, wantShift: 0},
+		"any: no-shift fifty-nine":  {sched: partAny{Text: "*"}, dt: 59, want: 59, wantShift: 0},
+		"interval: no-shift in set": {sched: partInterval{Text: "0-3", Min: 0, Max: 3}, dt: 2, want: 2, wantShift: 0},
+		"interval: no-shift lower":  {sched: partInterval{Text: "5-10", Min: 5, Max: 10}, dt: 2, want: 5, wantShift: 0},
+		"interval: shift higher":    {sched: partInterval{Text: "4-9", Min: 4, Max: 9}, dt: 10, want: 4, wantShift: 1},
+		"list: no-shift exact":      {sched: partList{Text: "27", List: []int{27}}, dt: 27, want: 27, wantShift: 0},
+		"list: no-shift lower":      {sched: partList{Text: "50,55", List: []int{50, 55}}, dt: 30, want: 50, wantShift: 0},
+		"list: shift higher":        {sched: partList{Text: "10,13,17", List: []int{10, 13, 17}}, dt: 23, want: 10, wantShift: 1},
 	}
 
 	for name, test := range tests {
@@ -160,7 +160,7 @@ func TestCompareTime(t *testing.T) {
 
 func TestNext(t *testing.T) {
 
-	every := PartAny{Text: "*"}
+	every := partAny{Text: "*"}
 
 	everySecond := Schedule{
 		Second:   every,
@@ -172,63 +172,64 @@ func TestNext(t *testing.T) {
 	}
 
 	specificMDHMS := Schedule{
-		Second:   PartList{Text: "0", List: []int{0}},
-		Minute:   PartList{Text: "30", List: []int{30}},
-		Hour:     PartList{Text: "12", List: []int{12}},
+		Second:   partList{Text: "0", List: []int{0}},
+		Minute:   partList{Text: "30", List: []int{30}},
+		Hour:     partList{Text: "12", List: []int{12}},
 		WeekDay:  every,
-		MonthDay: PartList{Text: "5", List: []int{5}},
-		Month:    PartList{Text: "1", List: []int{1}},
+		MonthDay: partList{Text: "5", List: []int{5}},
+		Month:    partList{Text: "1", List: []int{1}},
 	}
 
 	listHMS := Schedule{
-		Second:   PartList{Text: "55", List: []int{55}},
-		Minute:   PartInterval{Text: "46-50", Min: 46, Max: 50},
-		Hour:     PartInterval{Text: "16-20", Min: 16, Max: 20},
+		Second:   partList{Text: "55", List: []int{55}},
+		Minute:   partInterval{Text: "46-50", Min: 46, Max: 50},
+		Hour:     partInterval{Text: "16-20", Min: 16, Max: 20},
 		WeekDay:  every,
 		MonthDay: every,
 		Month:    every,
 	}
 
 	specificWDMD := Schedule{
-		Second:   PartList{Text: "1", List: []int{1}},
-		Minute:   PartList{Text: "1", List: []int{1}},
-		Hour:     PartList{Text: "1", List: []int{1}},
-		WeekDay:  PartList{Text: "4", List: []int{4}},
-		MonthDay: PartList{Text: "10", List: []int{10}},
+		Second:   partList{Text: "1", List: []int{1}},
+		Minute:   partList{Text: "1", List: []int{1}},
+		Hour:     partList{Text: "1", List: []int{1}},
+		WeekDay:  partList{Text: "4", List: []int{4}},
+		MonthDay: partList{Text: "10", List: []int{10}},
 		Month:    every,
 	}
 
 	listWDMD := Schedule{
-		Second:   PartList{Text: "50", List: []int{50}},
-		Minute:   PartList{Text: "26", List: []int{26}},
-		Hour:     PartList{Text: "14", List: []int{14}},
-		WeekDay:  PartList{Text: "2", List: []int{2}},
-		MonthDay: PartList{Text: "10,11", List: []int{10, 11}},
+		Second:   partList{Text: "50", List: []int{50}},
+		Minute:   partList{Text: "26", List: []int{26}},
+		Hour:     partList{Text: "14", List: []int{14}},
+		WeekDay:  partList{Text: "2", List: []int{2}},
+		MonthDay: partList{Text: "10,11", List: []int{10, 11}},
 		Month:    every,
 	}
 
 	intWDintMD := Schedule{
-		Second:   PartList{Text: "2", List: []int{2}},
-		Minute:   PartList{Text: "3", List: []int{3}},
-		Hour:     PartList{Text: "4", List: []int{4}},
-		WeekDay:  PartInterval{Text: "2-4", Min: 2, Max: 4},
-		MonthDay: PartInterval{Text: "20-21", Min: 20, Max: 21},
-		Month:    PartInterval{Text: "2-4", Min: 2, Max: 4},
+		Second:   partList{Text: "2", List: []int{2}},
+		Minute:   partList{Text: "3", List: []int{3}},
+		Hour:     partList{Text: "4", List: []int{4}},
+		WeekDay:  partInterval{Text: "2-4", Min: 2, Max: 4},
+		MonthDay: partInterval{Text: "20-21", Min: 20, Max: 21},
+		Month:    partInterval{Text: "2-4", Min: 2, Max: 4},
 	}
 
 	tuesday2 := Schedule{
-		Second:   PartList{Text: "5", List: []int{5}},
-		Minute:   PartList{Text: "33", List: []int{33}},
-		Hour:     PartList{Text: "15", List: []int{15}},
-		WeekDay:  PartList{Text: "2", List: []int{2}},
-		MonthDay: PartInterval{Text: "1-2", Min: 1, Max: 2},
-		Month:    PartInterval{Text: "3-8", Min: 3, Max: 8},
+		Second:   partList{Text: "5", List: []int{5}},
+		Minute:   partList{Text: "33", List: []int{33}},
+		Hour:     partList{Text: "15", List: []int{15}},
+		WeekDay:  partList{Text: "2", List: []int{2}},
+		MonthDay: partInterval{Text: "1-2", Min: 1, Max: 2},
+		Month:    partInterval{Text: "3-8", Min: 3, Max: 8},
 	}
 
 	tests := map[string]struct {
 		sched Schedule
 		after time.Time
 		want  time.Time
+		err   error
 	}{
 		"this second":        {sched: everySecond, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local)},
 		"next year":          {sched: specificMDHMS, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2020, time.Month(1), 5, 12, 30, 0, 0, time.Local)},
@@ -244,9 +245,12 @@ func TestNext(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := test.sched.Next(test.after)
+			got, err := test.sched.Next(test.after)
 			if !reflect.DeepEqual(test.want, got) {
 				t.Fatalf("Expected: %v, got: %v", test.want, got)
+			}
+			if !reflect.DeepEqual(test.err, err) {
+				t.Fatalf("Expected: %#v, got: %#v", test.err, err)
 			}
 		})
 	}

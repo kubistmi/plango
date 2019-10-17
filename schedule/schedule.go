@@ -13,7 +13,7 @@ import (
 )
 
 // PartLimits ...
-var PartLimits = map[string][2]int{
+var partLimits = map[string][2]int{
 	"second":   [2]int{0, 59},
 	"minute":   [2]int{0, 59},
 	"hour":     [2]int{0, 23},
@@ -23,67 +23,72 @@ var PartLimits = map[string][2]int{
 }
 
 // PartOrder ...
-var PartOrder = []string{"second", "minute", "hour", "weekDay", "monthDay", "month"}
+var partOrder = []string{"second", "minute", "hour", "weekDay", "monthDay", "month"}
 
 // Part ...
-type Part interface {
+type part interface {
 	checkPart(partLim [2]int) error
 	compareTime(timepart int) (int, int)
 	getOrigin() string
 }
 
 // Schedule ...
-type Schedule struct{ Second, Minute, Hour, WeekDay, MonthDay, Month Part }
+type Schedule struct{ Second, Minute, Hour, WeekDay, MonthDay, Month part }
 
 // PartAny defines schedule based on the string "*". This definition will trigger on every occurence it can.
 // E.g. using * in monthDays field means the job will be run every day of the month (with regard to other definitions, such as weekDay).
-type PartAny struct {
+type partAny struct {
 	Text string
 }
 
 // PartInterval defines schedule based on the string "x-y". This definition will trigger on every occurence in this interval.
 // E.g. using 4-6 in hours field means the job will be run at hours 4, 5 and 6 (with regard to other definitions).
-type PartInterval struct {
+type partInterval struct {
 	Min, Max int
 	Text     string
 }
 
 // PartList defines schedule based on the string "x,y,y". This definition will trigger on every occurence listed in the definition.
 // E.g. using 4,6,20 in minutes field means the job will be run at minutes 4, 6 and 20 (with regard to other definitions).
-type PartList struct {
+type partList struct {
 	List []int
 	Text string
 }
 
 // ---------------------- GET ORIGIN -------------------------------------------------------------------
-func (sp PartAny) getOrigin() string {
+func (sp partAny) getOrigin() string {
 	return sp.Text
 }
 
-func (sp PartInterval) getOrigin() string {
+func (sp partInterval) getOrigin() string {
 	return sp.Text
 }
 
-func (sp PartList) getOrigin() string {
+func (sp partList) getOrigin() string {
 	return sp.Text
 }
 
 // ---------------------- COMPARE TIME -----------------------------------------------------------------
 
 // compareTime ...
-func (sp PartAny) compareTime(timepart int) (int, int) {
+func (sp partAny) compareTime(timepart int) (int, int) {
 	// timepart originates from time.Time so it's valid time value => safe to return
 	return timepart, 0
 }
 
 // compareTime ...
-func (sp PartInterval) compareTime(timepart int) (int, int) {
+func (sp partInterval) compareTime(timepart int) (int, int) {
 	var vec []int
 	var err error
 
+	// TODO: how to properly implement this?
 	vec, err = utils.MakeRange(sp.Min, sp.Max)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf(
+			`Ok, so while comparing the time from the input %v (type Interval), the method was unable to create the slice defined by the bounds. \n
+			This was supposed to be handled while parsing the schedule and therefore should NEVER happen. Congratulations, I am so sorry, and please submit an issue at https://github.com/kubistmi/plango. \n
+			What you need to do now is to remove this schedule and resubmit it. Perhaps try different format. This is uncharted territory, so I really don't know.`,
+			sp.Text)
 	}
 
 	// find time value higher than or equal current time
@@ -102,7 +107,7 @@ func (sp PartInterval) compareTime(timepart int) (int, int) {
 }
 
 // compareTime ...
-func (sp PartList) compareTime(timepart int) (int, int) {
+func (sp partList) compareTime(timepart int) (int, int) {
 	// find time value higher than or equal current time
 	// e.g. schedule = "0 0 5,6 * * *" ; current = 2019-10-12 06:00:00
 	//      return 2019-10-12 06:00:00
@@ -120,12 +125,12 @@ func (sp PartList) compareTime(timepart int) (int, int) {
 
 // ---------------------- CHECK PART ---------------------------------------------------------------
 // checkPart ...
-func (sp PartAny) checkPart(partLim [2]int) error {
+func (sp partAny) checkPart(partLim [2]int) error {
 	return nil
 }
 
 // checkPart ...
-func (sp PartInterval) checkPart(partLim [2]int) error {
+func (sp partInterval) checkPart(partLim [2]int) error {
 	if sp.Min > sp.Max {
 		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s",
 			sp.Min, sp.Max, sp.Text)
@@ -138,7 +143,7 @@ func (sp PartInterval) checkPart(partLim [2]int) error {
 }
 
 // checkPart ...
-func (sp PartList) checkPart(partLim [2]int) error {
+func (sp partList) checkPart(partLim [2]int) error {
 	min := utils.FindMin(sp.List)
 	max := utils.FindMax(sp.List)
 
@@ -157,26 +162,26 @@ func (sp PartList) checkPart(partLim [2]int) error {
 // ParseSchedule ...
 func ParseSchedule(schedule string) (Schedule, error) {
 
-	res := make(map[string]Part)
+	res := make(map[string]part)
 
 	parts := strings.Split(schedule, " ")
 
-	if lenParts := len(parts); lenParts != len(PartOrder) {
+	if lenParts := len(parts); lenParts != len(partOrder) {
 		return Schedule{},
 			fmt.Errorf("Incorrect number of fields, expected 6 got %v. Fields are separated by a space and the whitespace can't be used for any other purpose", lenParts)
 	}
 
 	// process part-by-part
 	for ix, p := range parts {
-		var part Part
+		var part part
 		var err error
 
-		partType := PartOrder[ix]
-		partLim := PartLimits[partType]
+		partType := partOrder[ix]
+		partLim := partLimits[partType]
 
 		switch {
 		case strings.Contains(p, "*"):
-			part = PartAny{Text: p}
+			part = partAny{Text: p}
 
 		case strings.Contains(p, "-"):
 			lims := strings.Split(p, "-")
@@ -198,7 +203,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 			min := utils.FindMin(limsI)
 			max := utils.FindMax(limsI)
 
-			part = PartInterval{
+			part = partInterval{
 				Text: p,
 				Min:  min,
 				Max:  max,
@@ -218,7 +223,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 
 			// sort and keep unique only
 			sort.Ints(listI)
-			part = PartList{Text: p, List: utils.FindUnique(listI)}
+			part = partList{Text: p, List: utils.FindUnique(listI)}
 
 		default:
 			pI, err := strconv.Atoi(p)
@@ -226,7 +231,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 				return Schedule{}, fmt.Errorf("Unable to parse part of schedule: %s", p)
 			}
 
-			part = PartList{Text: p, List: []int{pI}}
+			part = partList{Text: p, List: []int{pI}}
 		}
 		err = part.checkPart(partLim)
 		if err != nil {

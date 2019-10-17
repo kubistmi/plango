@@ -253,7 +253,7 @@ func ParseSchedule(schedule string) (Schedule, error) {
 }
 
 // Next ...
-func (s Schedule) Next(After time.Time) time.Time {
+func (s Schedule) Next(After time.Time) (time.Time, error) {
 	var nxtSecond, nxtMinute, nxtHour, nxtMday, nxtMonth, nxtYear int //nxtWday,
 	var shift int
 
@@ -271,17 +271,17 @@ func (s Schedule) Next(After time.Time) time.Time {
 	// day is a little bit more fun
 	switch s.WeekDay.(type) {
 
-	case PartAny:
+	case partAny:
 		// the easy part, for non-specific weekDay, just go through the calendar as above
 		nxtMday, shift = s.MonthDay.compareTime(next.Day())
 		next = next.AddDate(0, shift, 0)
 
 		nxtMonth, shift = s.Month.compareTime(int(next.Month()))
 		nxtYear = next.Year() + shift
-		return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local)
+		return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local), nil
 
 	default:
-		// TODO: this should be a config variable
+		// TODO: should this be a config variable?
 		iter := 50
 
 		// update the next timestamp using the found values of H:M:S
@@ -302,7 +302,7 @@ func (s Schedule) Next(After time.Time) time.Time {
 
 			// very greedy early exit, if the monthDay and month are OK, return
 			if wdShift == 0 && wdMday == next.Day() && wdMonth == int(next.Month()) {
-				return time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local)
+				return time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local), nil
 			}
 
 			// if incorrect Schedule.Month, then jump to the next month and ...
@@ -315,7 +315,6 @@ func (s Schedule) Next(After time.Time) time.Time {
 			}
 		}
 	}
-	// default, if nothing found...
-	// TODO: refactor to error
-	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)
+	// if the date cannot be found, not sure this is possible
+	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local), fmt.Errorf("unable to find the date satisfying the schedule")
 }

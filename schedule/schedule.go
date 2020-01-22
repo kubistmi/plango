@@ -305,13 +305,14 @@ func (s Schedule) Next(After time.Time) (time.Time, error) {
 				return time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local), nil
 			}
 
-			// if incorrect Schedule.Month, then jump to the next month and ...
-			// else move by one month and ...
+			// if Schedule.Month too high, then jump to the next year and ...
+			// else to the max(Schedule.Month, 1) and ...
 			// ... lowest of the Schedule.MonthDay
 			if wdMshift == 1 {
-				next = next.AddDate(1, wdMonth-int(next.Month()), wdMday-int(next.Day()))
+				next = next.AddDate(wdMshift, wdMonth-int(next.Month()), wdMday-int(next.Day()))
 			} else {
-				next = next.AddDate(0, wdShift, wdMday-int(next.Day()))
+				monthShift := []int{wdMonth - int(next.Month()), wdShift}
+				next = next.AddDate(0, utils.FindMax(monthShift), wdMday-int(next.Day()))
 			}
 		}
 	}

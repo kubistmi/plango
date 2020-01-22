@@ -57,45 +57,45 @@ func TestParseSchedule(t *testing.T) {
 		Second:   every,
 		Minute:   every,
 		Hour:     every,
-		WeekDay:  every,
 		MonthDay: every,
 		Month:    every,
+		WeekDay:  every,
 	}
 
 	minutesMonday := Schedule{
 		Second:   partList{Text: "0", List: []int{0}},
 		Minute:   partInterval{Text: "2-5", Min: 2, Max: 5},
 		Hour:     every,
-		WeekDay:  partList{Text: "0", List: []int{0}},
 		MonthDay: every,
 		Month:    every,
+		WeekDay:  partList{Text: "0", List: []int{0}},
 	}
 
 	specific := Schedule{
 		Second:   partList{Text: "0", List: []int{0}},
 		Minute:   partList{Text: "30", List: []int{30}},
 		Hour:     partList{Text: "12", List: []int{12}},
-		WeekDay:  every,
 		MonthDay: partList{Text: "5", List: []int{5}},
 		Month:    partList{Text: "1,2", List: []int{1, 2}},
+		WeekDay:  every,
 	}
 
 	listHours := Schedule{
 		Second:   partList{Text: "0", List: []int{0}},
 		Minute:   partList{Text: "0", List: []int{0}},
 		Hour:     partList{Text: "3,5,6", List: []int{3, 5, 6}},
-		WeekDay:  every,
 		MonthDay: partList{Text: "31", List: []int{31}},
 		Month:    every,
+		WeekDay:  every,
 	}
 
 	intervals := Schedule{
 		Second:   partInterval{Text: "55-58", Min: 55, Max: 58},
 		Minute:   partInterval{Text: "23-29", Min: 23, Max: 29},
 		Hour:     partInterval{Text: "3-6", Min: 3, Max: 6},
-		WeekDay:  partInterval{Text: "2-5", Min: 2, Max: 5},
 		MonthDay: partInterval{Text: "24-29", Min: 24, Max: 29},
 		Month:    partInterval{Text: "1-3", Min: 1, Max: 3},
+		WeekDay:  partInterval{Text: "2-5", Min: 2, Max: 5},
 	}
 
 	tests := map[string]struct {
@@ -104,18 +104,18 @@ func TestParseSchedule(t *testing.T) {
 		err  error
 	}{
 		"every second":                   {sch: "* * * * * *", want: everySecond, err: nil},
-		"range minutes on Monday":        {sch: "0 2-5 * 0 * *", want: minutesMonday, err: nil},
-		"specific time on 5th January ":  {sch: "0 30 12 * 5 1,2", want: specific, err: nil},
-		"list hours every 31th monthDay": {sch: "0 0 3,5,6 * 31 *", want: listHours, err: nil},
-		"error monthDay too high":        {sch: "0 0 12 * 32 *", want: Schedule{}, err: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, 32, 32, "32")},
-		"error too many fields":          {sch: "0 0 0 0 0 0 *", want: Schedule{}, err: fmt.Errorf("Incorrect number of fields, expected 6 got %v. Fields are separated by a space and the whitespace can't be used for any other purpose", 7)},
-		"error wrong range":              {sch: "0 0 12-18-10 0 0 *", want: Schedule{}, err: fmt.Errorf("Incorrect format of range. Expected 2 values separated by `-`, got %v", 3)},
-		"error single non-convertible":   {sch: "a b c d e *", want: Schedule{}, err: fmt.Errorf("Unable to parse part of schedule: %s", "a")},
-		"error non-convertible range":    {sch: "0 0 0 0 12-18a *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "18a")},
-		"error non-convertible list":     {sch: "0 0 0 0 12,1a *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "1a")},
-		"error list and range":           {sch: "0 11-15,16 0 0 0 *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "15,16")},
-		"error range and list":           {sch: "0 9,17-20 0 0 0 *", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "9,17")},
-		"only intervals":                 {sch: "55-58 23-29 3-6 2-5 24-29 1-3", want: intervals, err: nil},
+		"range minutes on Monday":        {sch: "0 2-5 * * * 0", want: minutesMonday, err: nil},
+		"specific time on 5th January ":  {sch: "0 30 12 5 1,2 *", want: specific, err: nil},
+		"list hours every 31th monthDay": {sch: "0 0 3,5,6 31 * *", want: listHours, err: nil},
+		"error monthDay too high":        {sch: "0 0 12 32 * *", want: Schedule{}, err: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, 32, 32, "32")},
+		"error too many fields":          {sch: "0 0 0 0 0 * 0", want: Schedule{}, err: fmt.Errorf("Incorrect number of fields, expected 6 got %v. Fields are separated by a space and the whitespace can't be used for any other purpose", 7)},
+		"error wrong range":              {sch: "0 0 12-18-10 0 * 0", want: Schedule{}, err: fmt.Errorf("Incorrect format of range. Expected 2 values separated by `-`, got %v", 3)},
+		"error single non-convertible":   {sch: "a b c e * d", want: Schedule{}, err: fmt.Errorf("Unable to parse part of schedule: %s", "a")},
+		"error non-convertible range":    {sch: "0 0 0 12-18a * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "18a")},
+		"error non-convertible list":     {sch: "0 0 0 12,1a * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "1a")},
+		"error list and range":           {sch: "0 11-15,16 0 0 * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "15,16")},
+		"error range and list":           {sch: "0 9,17-20 0 0 * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "9,17")},
+		"only intervals":                 {sch: "55-58 23-29 3-6 24-29 1-3 2-5", want: intervals, err: nil},
 	}
 
 	for name, test := range tests {

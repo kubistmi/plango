@@ -17,13 +17,13 @@ var partLimits = map[string][2]int{
 	"second":   [2]int{0, 59},
 	"minute":   [2]int{0, 59},
 	"hour":     [2]int{0, 23},
-	"weekDay":  [2]int{0, 6},
 	"monthDay": [2]int{1, 31},
 	"month":    [2]int{1, 12},
+	"weekDay":  [2]int{0, 6},
 }
 
 // PartOrder ...
-var partOrder = []string{"second", "minute", "hour", "weekDay", "monthDay", "month"}
+var partOrder = []string{"second", "minute", "hour", "monthDay", "month", "weekDay"}
 
 // Part ...
 type part interface {
@@ -33,7 +33,7 @@ type part interface {
 }
 
 // Schedule ...
-type Schedule struct{ Second, Minute, Hour, WeekDay, MonthDay, Month part }
+type Schedule struct{ Second, Minute, Hour, MonthDay, Month, WeekDay part }
 
 // PartAny defines schedule based on the string "*". This definition will trigger on every occurence it can.
 // E.g. using * in monthDays field means the job will be run every day of the month (with regard to other definitions, such as weekDay).
@@ -245,9 +245,9 @@ func ParseSchedule(schedule string) (Schedule, error) {
 		Second:   res["second"],
 		Minute:   res["minute"],
 		Hour:     res["hour"],
-		WeekDay:  res["weekDay"],
 		MonthDay: res["monthDay"],
 		Month:    res["month"],
+		WeekDay:  res["weekDay"],
 	}, nil
 
 }
@@ -292,7 +292,7 @@ func (s Schedule) Next(After time.Time) (time.Time, error) {
 			// first, check whether the weekday is OK
 			// shift by:
 			//    - difference in days
-			//    - difference in weeks * 7
+			//    - difference in weekdays * 7
 			wdNext, wdShift = s.WeekDay.compareTime(int(next.Weekday()))
 			next = next.AddDate(0, 0, wdNext-int(next.Weekday())+wdShift*7)
 
@@ -315,6 +315,6 @@ func (s Schedule) Next(After time.Time) (time.Time, error) {
 			}
 		}
 	}
-	// if the date cannot be found, not sure this is possible
+	// if the date cannot be found, not sure this is reachable
 	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local), fmt.Errorf("unable to find the date satisfying the schedule")
 }

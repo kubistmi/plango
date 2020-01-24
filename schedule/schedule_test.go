@@ -14,6 +14,13 @@ func wrapMakeRange(min, max int) []int {
 	return res
 }
 
+func (sp partList) minT() int {
+	return utils.FindMin(sp.List)
+}
+func (sp partList) maxT() int {
+	return utils.FindMax(sp.List)
+}
+
 var every = partAny{Text: "*"}
 
 func TestCheckSchedule(t *testing.T) {
@@ -84,8 +91,8 @@ func TestCheckPart(t *testing.T) {
 	}{
 		"interval: correct (minute)":     {part: int05, partLim: [2]int{0, 59}, want: nil},
 		"any: no error (ever)":           {part: every, partLim: [2]int{0, 59}, want: nil},
-		"interval: min lower (monthDay)": {part: int25, partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, int25.min(), int25.max(), int25.Text)},
-		"interval: max higher (month)":   {part: int513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, int513.min(), int513.max(), int513.Text)},
+		"interval: min lower (monthDay)": {part: int25, partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, int25.minT(), int25.maxT(), int25.Text)},
+		"interval: max higher (month)":   {part: int513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, int513.minT(), int513.maxT(), int513.Text)},
 		"list: correct (minute)":         {part: list50, partLim: [2]int{0, 59}, want: nil},
 		"list: min > max (weekDay)":      {part: list42, partLim: [2]int{0, 6}, want: nil},
 		"list: single value (hour)":      {part: listSingle, partLim: [2]int{0, 23}, want: nil},
@@ -281,7 +288,7 @@ func TestNext(t *testing.T) {
 		Hour:     partList{Text: "15", List: []int{15}},
 		WeekDay:  every,
 		MonthDay: partList{Text: "31", List: []int{31}},
-		Month:    partList{Text: "11,12", List: []int{11, 12}},
+		Month:    partList{Text: "10,12", List: []int{10, 12}},
 	}
 
 	tests := map[string]struct {
@@ -300,7 +307,7 @@ func TestNext(t *testing.T) {
 		"shift wDay list":                {sched: listWDMD, after: time.Date(2019, time.Month(10), 7, 19, 56, 38, 0, time.Local), want: time.Date(2019, time.Month(12), 10, 14, 26, 50, 0, time.Local)},
 		"shift intervals":                {sched: intWDintMD, after: time.Date(2019, time.Month(10), 27, 22, 39, 16, 55, time.Local), want: time.Date(2020, time.Month(2), 20, 4, 3, 2, 0, time.Local)},
 		"tuesday the second":             {sched: tuesday2, after: time.Date(2019, time.Month(10), 1, 0, 0, 0, 1, time.Local), want: time.Date(2020, time.Month(6), 2, 15, 33, 5, 0, time.Local)},
-		"skipping the month with day 31": {sched: nextmonth31, after: time.Date(2019, time.Month(10), 30, 0, 0, 0, 1, time.Local), want: time.Date(2019, time.Month(12), 31, 0, 0, 1, 0, time.Local)},
+		"skipping the month with day 31": {sched: nextmonth31, after: time.Date(2019, time.Month(11), 30, 17, 0, 0, 0, time.Local), want: time.Date(2019, time.Month(12), 31, 15, 33, 5, 0, time.Local)},
 	}
 
 	for name, test := range tests {

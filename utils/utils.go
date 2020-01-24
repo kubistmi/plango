@@ -51,3 +51,13 @@ func FindUnique(vec []int) []int {
 	}
 	return unique
 }
+
+// IsIn ...
+func IsIn(element int, vec []int) bool {
+	for _, val := range vec {
+		if element == val {
+			return true
+		}
+	}
+	return false
+}

@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html"
-	"net/http"
 	"time"
 
 	"github.com/kubistmi/plango/schedule"
@@ -57,16 +55,11 @@ func CreateJob(Name string, Plan schedule.Schedule, Command string, Args []strin
 }
 
 func main() {
-	//fmt.Println("Build succesfull!")
-	badSchedule, err := schedule.ParseSchedule("* * * 31 10 1")
-	fmt.Println(err)
+	sched, err := schedule.ParseSchedule("5 33 15 31 10,12 *")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
-	})
-	go http.ListenAndServe(":8080", nil)
-
-	fmt.Println(badSchedule.Next(time.Now()))
-	wait := time.Tick(50 * time.Second)
-	<-wait
+	now := time.Date(2019, time.Month(11), 30, 17, 0, 0, 1, time.Local)
+	fmt.Println(sched.Next(now))
 }

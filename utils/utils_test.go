@@ -86,3 +86,25 @@ func TestFindUnique(t *testing.T) {
 		})
 	}
 }
+
+func TestIsIn(t *testing.T) {
+	tests := map[string]struct {
+		element int
+		vec     []int
+		want    bool
+	}{
+		"its first":     {element: 6, vec: []int{6, 9, 7, 6, 5}, want: true},
+		"its last":      {element: 1, vec: []int{7, 4, 3, 9, 7, 0, 1}, want: true},
+		"its middle":    {element: -1, vec: []int{6, 4, 7, 9, -1, 5, 2, 4}, want: true},
+		"its not there": {element: 99, vec: []int{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3}, want: false},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := IsIn(test.element, test.vec)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}

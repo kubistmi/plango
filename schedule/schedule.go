@@ -26,6 +26,8 @@ var partOrder = []string{"second", "minute", "hour", "monthDay", "month", "weekD
 
 // Part ...
 type part interface {
+	min(parType string) int
+	isin(el int) bool
 	checkPart(partLim [2]int) error
 	compareTime(timepart int) (int, int)
 	getOrigin() string
@@ -34,6 +36,7 @@ type part interface {
 // Schedule ...
 type Schedule struct{ Second, Minute, Hour, MonthDay, Month, WeekDay part }
 
+// checkSchedule
 func checkSchedule(sch Schedule) error {
 
 	days := make([]int, 0, 31)
@@ -77,12 +80,23 @@ type partList struct {
 	Text string
 }
 
-func (sp partList) min() int {
-	return utils.FindMin(sp.List)
+// ---------------------- ISIN -----------------------------------------------------------------------
+func (sp partAny) isin(el int) bool {
+	return true
 }
 
-func (sp partList) max() int {
-	return utils.FindMax(sp.List)
+func (sp partList) isin(el int) bool {
+	return utils.IsIn(el, sp.List)
+}
+
+// ---------------------- MIN ------------------------------------------------------------------------
+func (sp partAny) min(parType string) int {
+	return utils.FindMax([]int{partLimits[parType][0], 0})
+}
+
+func (sp partList) min(parType string) int {
+	min := utils.FindMin(sp.List)
+	return utils.FindMax([]int{partLimits[parType][0], min})
 }
 
 // ---------------------- GET ORIGIN -------------------------------------------------------------------
@@ -244,72 +258,4 @@ func ParseSchedule(schedule string) (Schedule, error) {
 		return Schedule{}, err
 	}
 	return result, nil
-}
-
-// Next ...
-func (s Schedule) Next(After time.Time) (time.Time, error) {
-	var nxtSecond, nxtMinute, nxtHour, nxtMday, nxtMonth, nxtYear int //nxtWday,
-	var shift int
-
-	next := After
-
-	nxtSecond, shift = s.Second.compareTime(next.Second())
-	next = next.Add(time.Minute * time.Duration(shift))
-
-	nxtMinute, shift = s.Minute.compareTime(next.Minute())
-	next = next.Add(time.Hour * time.Duration(shift))
-
-	nxtHour, shift = s.Hour.compareTime(next.Hour())
-	next = next.AddDate(0, 0, shift)
-
-	// day is a little bit more fun
-	switch s.WeekDay.(type) {
-
-	case partAny:
-		// the easy part, for non-specific weekDay, just go through the calendar as above
-		nxtMday, shift = s.MonthDay.compareTime(next.Day())
-		next = next.AddDate(0, shift, 0)
-
-		nxtMonth, shift = s.Month.compareTime(int(next.Month()))
-		nxtYear = next.Year() + shift
-		return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local), nil
-
-	default:
-		// TODO: should this be a config variable?
-		iter := 50
-
-		// update the next timestamp using the found values of H:M:S
-		next = time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local)
-		var wdMday, wdNext, wdShift int
-
-		for i := 0; i < iter; i++ {
-			// first, check whether the weekday is OK
-			// shift by:
-			//    - difference in days
-			//    - difference in weekdays * 7
-			wdNext, wdShift = s.WeekDay.compareTime(int(next.Weekday()))
-			next = next.AddDate(0, 0, wdNext-int(next.Weekday())+wdShift*7)
-
-			// then, check the monthDay and month
-			wdMday, wdShift = s.MonthDay.compareTime(next.Day())
-			wdMonth, wdMshift := s.Month.compareTime(int(next.Month()))
-
-			// very greedy early exit, if the monthDay and month are OK, return
-			if wdShift == 0 && wdMday == next.Day() && wdMonth == int(next.Month()) {
-				return time.Date(next.Year(), next.Month(), next.Day(), nxtHour, nxtMinute, nxtSecond, 0, time.Local), nil
-			}
-
-			// if Schedule.Month too high, then jump to the next year and ...
-			// else to the max(Schedule.Month, 1) and ...
-			// ... lowest of the Schedule.MonthDay
-			if wdMshift == 1 {
-				next = next.AddDate(wdMshift, wdMonth-int(next.Month()), wdMday-int(next.Day()))
-			} else {
-				monthShift := []int{wdMonth - int(next.Month()), wdShift}
-				next = next.AddDate(0, utils.FindMax(monthShift), wdMday-int(next.Day()))
-			}
-		}
-	}
-	//! if the date cannot be found, not sure this is reachable
-	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local), fmt.Errorf("unable to find the date satisfying the schedule")
 }

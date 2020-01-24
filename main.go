@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"html"
+	"net/http"
 	"time"
 
 	"github.com/kubistmi/plango/schedule"
 )
 
 const (
-	// NumSchedules defines the number of schedules that stored
+	// NumSchedules defines the number of future runs that are planned and stored
 	NumSchedules = 5
 )
 
@@ -20,7 +22,8 @@ type Job struct {
 	Active   bool
 	Command  string
 	Args     []string
-	Config   map[string]string
+	// TODO: is this needed?
+	Config map[string]string
 }
 
 // Run defines the singular execution of the Job
@@ -54,5 +57,16 @@ func CreateJob(Name string, Plan schedule.Schedule, Command string, Args []strin
 }
 
 func main() {
-	fmt.Println("Build succesfull!")
+	//fmt.Println("Build succesfull!")
+	badSchedule, err := schedule.ParseSchedule("* * * 31 10 1")
+	fmt.Println(err)
+
+	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+	})
+	go http.ListenAndServe(":8080", nil)
+
+	fmt.Println(badSchedule.Next(time.Now()))
+	wait := time.Tick(50 * time.Second)
+	<-wait
 }

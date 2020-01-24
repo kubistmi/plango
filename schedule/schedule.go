@@ -34,6 +34,36 @@ type part interface {
 // Schedule ...
 type Schedule struct{ Second, Minute, Hour, MonthDay, Month, WeekDay part }
 
+func checkSchedule(sch Schedule) error {
+
+	days := make([]int, 0, 31)
+	months := make([]int, 0, 12)
+
+	switch d := sch.MonthDay.(type) {
+	case partList:
+		days = d.List
+	}
+
+	switch m := sch.Month.(type) {
+	case partList:
+		months = m.List
+	}
+
+	if len(months)*len(days) == 0 {
+		return nil
+	}
+
+	for _, m := range months {
+		for _, d := range days {
+			dt := time.Date(2000, time.Month(m), d, 0, 0, 0, 0, time.Local)
+			if dt.Day() != d || int(dt.Month()) != m {
+				return fmt.Errorf("Encoutered impossible schedule: month:%v - day:%v", m, d)
+			}
+		}
+	}
+	return nil
+}
+
 // PartAny defines schedule based on the string "*". This definition will trigger on every occurence it can.
 // E.g. using * in monthDays field means the job will be run every day of the month (with regard to other definitions, such as weekDay).
 type partAny struct {
@@ -200,15 +230,20 @@ func ParseSchedule(schedule string) (Schedule, error) {
 		res[partType] = part
 	}
 
-	return Schedule{
+	result := Schedule{
 		Second:   res["second"],
 		Minute:   res["minute"],
 		Hour:     res["hour"],
 		MonthDay: res["monthDay"],
 		Month:    res["month"],
 		WeekDay:  res["weekDay"],
-	}, nil
+	}
 
+	err := checkSchedule(result)
+	if err != nil {
+		return Schedule{}, err
+	}
+	return result, nil
 }
 
 // Next ...

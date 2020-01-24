@@ -18,6 +18,54 @@ var every = partAny{Text: "*"}
 
 func TestCheckSchedule(t *testing.T) {
 
+	correct := Schedule{
+		MonthDay: partList{Text: "31", List: []int{31}},
+		Month:    partList{Text: "5,7,8", List: []int{5, 7, 8}},
+	}
+
+	correctAnyM := Schedule{
+		MonthDay: partList{Text: "31", List: []int{31}},
+		Month:    every,
+	}
+
+	correctAnyD := Schedule{
+		MonthDay: every,
+		Month:    partList{Text: "1,2,5", List: []int{1, 2, 5}},
+	}
+
+	correctFeb := Schedule{
+		MonthDay: partList{Text: "28,29", List: []int{28, 29}},
+		Month:    partList{Text: "2", List: []int{2}},
+	}
+
+	wrong31_11 := Schedule{
+		MonthDay: partList{Text: "31", List: []int{31}},
+		Month:    partList{Text: "10,11,12", List: []int{10, 11, 12}},
+	}
+
+	tests := map[string]struct {
+		sch  Schedule
+		want error
+	}{
+		"correct 31":        {sch: correct, want: nil},
+		"correct any month": {sch: correctAnyM, want: nil},
+		"correct any day":   {sch: correctAnyD, want: nil},
+		"correct february":  {sch: correctFeb, want: nil},
+		"wrong 31.11.":      {sch: wrong31_11, want: fmt.Errorf("Encoutered impossible schedule: month:%v - day:%v", 11, 31)},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := checkSchedule(test.sch)
+			if !reflect.DeepEqual(test.want, got) {
+				t.Fatalf("Expected: %#v, got: %#v", test.want, got)
+			}
+		})
+	}
+}
+
+func TestCheckPart(t *testing.T) {
+
 	// interval specification
 	int05 := partList{Text: "0-5", List: wrapMakeRange(0, 5)}
 	int25 := partList{Text: "0-25", List: wrapMakeRange(0, 25)}

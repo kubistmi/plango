@@ -5,17 +5,24 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/kubistmi/plango/utils"
 )
+
+func wrapMakeRange(min, max int) []int {
+	res, _ := utils.MakeRange(min, max)
+	return res
+}
+
+var every = partAny{Text: "*"}
 
 func TestCheckSchedule(t *testing.T) {
 
-	partAll := partAny{Text: "*"}
-	// intervals
-	int05 := partInterval{Text: "0-5", Min: 0, Max: 5}
-	int65 := partInterval{Text: "6-5", Min: 6, Max: 5}
-	int25 := partInterval{Text: "0-25", Min: 0, Max: 25}
-	int513 := partInterval{Text: "5-13", Min: 5, Max: 13}
-	// lists
+	// interval specification
+	int05 := partList{Text: "0-5", List: wrapMakeRange(0, 5)}
+	int25 := partList{Text: "0-25", List: wrapMakeRange(0, 25)}
+	int513 := partList{Text: "5-13", List: wrapMakeRange(5, 13)}
+	// list specification
 	list50 := partList{Text: "0,50", List: []int{0, 50}}
 	list42 := partList{Text: "4,2", List: []int{4, 2}}
 	listSingle := partList{Text: "23", List: []int{23}}
@@ -27,11 +34,10 @@ func TestCheckSchedule(t *testing.T) {
 		partLim [2]int
 		want    error
 	}{
-		"any: no error (ever)":           {part: partAll, partLim: [2]int{0, 59}, want: nil},
 		"interval: correct (minute)":     {part: int05, partLim: [2]int{0, 59}, want: nil},
-		"interval: min > max (weekDay)":  {part: int65, partLim: [2]int{0, 6}, want: fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s", int65.Min, int65.Max, int65.Text)},
-		"interval: min lower (monthDay)": {part: int25, partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, int25.Min, int25.Max, int25.Text)},
-		"interval: max higher (month)":   {part: int513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, int513.Min, int513.Max, int513.Text)},
+		"any: no error (ever)":           {part: every, partLim: [2]int{0, 59}, want: nil},
+		"interval: min lower (monthDay)": {part: int25, partLim: [2]int{1, 31}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 31, int25.min(), int25.max(), int25.Text)},
+		"interval: max higher (month)":   {part: int513, partLim: [2]int{1, 12}, want: fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s", 1, 12, int513.min(), int513.max(), int513.Text)},
 		"list: correct (minute)":         {part: list50, partLim: [2]int{0, 59}, want: nil},
 		"list: min > max (weekDay)":      {part: list42, partLim: [2]int{0, 6}, want: nil},
 		"list: single value (hour)":      {part: listSingle, partLim: [2]int{0, 23}, want: nil},
@@ -51,8 +57,6 @@ func TestCheckSchedule(t *testing.T) {
 
 func TestParseSchedule(t *testing.T) {
 
-	every := partAny{Text: "*"}
-
 	everySecond := Schedule{
 		Second:   every,
 		Minute:   every,
@@ -64,7 +68,7 @@ func TestParseSchedule(t *testing.T) {
 
 	minutesMonday := Schedule{
 		Second:   partList{Text: "0", List: []int{0}},
-		Minute:   partInterval{Text: "2-5", Min: 2, Max: 5},
+		Minute:   partList{Text: "2-5", List: wrapMakeRange(2, 5)},
 		Hour:     every,
 		MonthDay: every,
 		Month:    every,
@@ -90,12 +94,12 @@ func TestParseSchedule(t *testing.T) {
 	}
 
 	intervals := Schedule{
-		Second:   partInterval{Text: "55-58", Min: 55, Max: 58},
-		Minute:   partInterval{Text: "23-29", Min: 23, Max: 29},
-		Hour:     partInterval{Text: "3-6", Min: 3, Max: 6},
-		MonthDay: partInterval{Text: "24-29", Min: 24, Max: 29},
-		Month:    partInterval{Text: "1-3", Min: 1, Max: 3},
-		WeekDay:  partInterval{Text: "2-5", Min: 2, Max: 5},
+		Second:   partList{Text: "55-58", List: wrapMakeRange(55, 58)},
+		Minute:   partList{Text: "23-29", List: wrapMakeRange(23, 29)},
+		Hour:     partList{Text: "3-6", List: wrapMakeRange(3, 6)},
+		MonthDay: partList{Text: "24-29", List: wrapMakeRange(24, 29)},
+		Month:    partList{Text: "1-3", List: wrapMakeRange(1, 3)},
+		WeekDay:  partList{Text: "5-2", List: wrapMakeRange(2, 5)},
 	}
 
 	tests := map[string]struct {
@@ -115,7 +119,7 @@ func TestParseSchedule(t *testing.T) {
 		"error non-convertible list":     {sch: "0 0 0 12,1a * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "1a")},
 		"error list and range":           {sch: "0 11-15,16 0 0 * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "15,16")},
 		"error range and list":           {sch: "0 9,17-20 0 0 * 0", want: Schedule{}, err: fmt.Errorf("Unable to convert %s to an integer", "9,17")},
-		"only intervals":                 {sch: "55-58 23-29 3-6 24-29 1-3 2-5", want: intervals, err: nil},
+		"only intervals":                 {sch: "55-58 23-29 3-6 24-29 1-3 5-2", want: intervals, err: nil},
 	}
 
 	for name, test := range tests {
@@ -140,9 +144,9 @@ func TestCompareTime(t *testing.T) {
 	}{
 		"any: no-shift zero":        {sched: partAny{Text: "*"}, dt: 0, want: 0, wantShift: 0},
 		"any: no-shift fifty-nine":  {sched: partAny{Text: "*"}, dt: 59, want: 59, wantShift: 0},
-		"interval: no-shift in set": {sched: partInterval{Text: "0-3", Min: 0, Max: 3}, dt: 2, want: 2, wantShift: 0},
-		"interval: no-shift lower":  {sched: partInterval{Text: "5-10", Min: 5, Max: 10}, dt: 2, want: 5, wantShift: 0},
-		"interval: shift higher":    {sched: partInterval{Text: "4-9", Min: 4, Max: 9}, dt: 10, want: 4, wantShift: 1},
+		"interval: no-shift in set": {sched: partList{Text: "0-3", List: wrapMakeRange(0, 3)}, dt: 2, want: 2, wantShift: 0},
+		"interval: no-shift lower":  {sched: partList{Text: "5-10", List: wrapMakeRange(5, 10)}, dt: 2, want: 5, wantShift: 0},
+		"interval: shift higher":    {sched: partList{Text: "4-9", List: wrapMakeRange(4, 9)}, dt: 10, want: 4, wantShift: 1},
 		"list: no-shift exact":      {sched: partList{Text: "27", List: []int{27}}, dt: 27, want: 27, wantShift: 0},
 		"list: no-shift lower":      {sched: partList{Text: "50,55", List: []int{50, 55}}, dt: 30, want: 50, wantShift: 0},
 		"list: shift higher":        {sched: partList{Text: "10,13,17", List: []int{10, 13, 17}}, dt: 23, want: 10, wantShift: 1},
@@ -182,8 +186,8 @@ func TestNext(t *testing.T) {
 
 	listHMS := Schedule{
 		Second:   partList{Text: "55", List: []int{55}},
-		Minute:   partInterval{Text: "46-50", Min: 46, Max: 50},
-		Hour:     partInterval{Text: "16-20", Min: 16, Max: 20},
+		Minute:   partList{Text: "46-50", List: wrapMakeRange(46, 50)},
+		Hour:     partList{Text: "16-20", List: wrapMakeRange(16, 20)},
 		WeekDay:  every,
 		MonthDay: every,
 		Month:    every,
@@ -211,9 +215,9 @@ func TestNext(t *testing.T) {
 		Second:   partList{Text: "2", List: []int{2}},
 		Minute:   partList{Text: "3", List: []int{3}},
 		Hour:     partList{Text: "4", List: []int{4}},
-		WeekDay:  partInterval{Text: "2-4", Min: 2, Max: 4},
-		MonthDay: partInterval{Text: "20-21", Min: 20, Max: 21},
-		Month:    partInterval{Text: "2-4", Min: 2, Max: 4},
+		WeekDay:  partList{Text: "2-4", List: wrapMakeRange(2, 4)},
+		MonthDay: partList{Text: "20-21", List: wrapMakeRange(20, 21)},
+		Month:    partList{Text: "2-4", List: wrapMakeRange(2, 4)},
 	}
 
 	tuesday2 := Schedule{
@@ -221,8 +225,17 @@ func TestNext(t *testing.T) {
 		Minute:   partList{Text: "33", List: []int{33}},
 		Hour:     partList{Text: "15", List: []int{15}},
 		WeekDay:  partList{Text: "2", List: []int{2}},
-		MonthDay: partInterval{Text: "1-2", Min: 1, Max: 2},
-		Month:    partInterval{Text: "3-8", Min: 3, Max: 8},
+		MonthDay: partList{Text: "1-2", List: wrapMakeRange(1, 2)},
+		Month:    partList{Text: "3-8", List: wrapMakeRange(3, 8)},
+	}
+
+	nextmonth31 := Schedule{
+		Second:   partList{Text: "5", List: []int{5}},
+		Minute:   partList{Text: "33", List: []int{33}},
+		Hour:     partList{Text: "15", List: []int{15}},
+		WeekDay:  every,
+		MonthDay: partList{Text: "31", List: []int{31}},
+		Month:    partList{Text: "11,12", List: []int{11, 12}},
 	}
 
 	tests := map[string]struct {
@@ -231,16 +244,17 @@ func TestNext(t *testing.T) {
 		want  time.Time
 		err   error
 	}{
-		"this second":        {sched: everySecond, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local)},
-		"next year":          {sched: specificMDHMS, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2020, time.Month(1), 5, 12, 30, 0, 0, time.Local)},
-		"in 10 minutes":      {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 16, 35, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 16, 46, 55, 0, time.Local)},
-		"in an hour":         {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 16, 51, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 17, 46, 55, 0, time.Local)},
-		"in 5 seconds":       {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 20, 48, 53, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 20, 48, 55, 0, time.Local)},
-		"tomorrow":           {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 21, 8, 6, 0, time.Local), want: time.Date(2019, time.Month(3), 26, 16, 46, 55, 0, time.Local)},
-		"no shift wDay":      {sched: specificWDMD, after: time.Date(2019, time.Month(10), 7, 1, 1, 1, 0, time.Local), want: time.Date(2019, time.Month(10), 10, 1, 1, 1, 0, time.Local)},
-		"shift wDay list":    {sched: listWDMD, after: time.Date(2019, time.Month(10), 7, 19, 56, 38, 0, time.Local), want: time.Date(2019, time.Month(12), 10, 14, 26, 50, 0, time.Local)},
-		"shift intervals":    {sched: intWDintMD, after: time.Date(2019, time.Month(10), 27, 22, 39, 16, 55, time.Local), want: time.Date(2020, time.Month(2), 20, 4, 3, 2, 0, time.Local)},
-		"tuesday the second": {sched: tuesday2, after: time.Date(2019, time.Month(10), 1, 0, 0, 0, 1, time.Local), want: time.Date(2020, time.Month(6), 2, 15, 33, 5, 0, time.Local)},
+		"this second":                    {sched: everySecond, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local)},
+		"next year":                      {sched: specificMDHMS, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2020, time.Month(1), 5, 12, 30, 0, 0, time.Local)},
+		"in 10 minutes":                  {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 16, 35, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 16, 46, 55, 0, time.Local)},
+		"in an hour":                     {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 16, 51, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 17, 46, 55, 0, time.Local)},
+		"in 5 seconds":                   {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 20, 48, 53, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 20, 48, 55, 0, time.Local)},
+		"tomorrow":                       {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 21, 8, 6, 0, time.Local), want: time.Date(2019, time.Month(3), 26, 16, 46, 55, 0, time.Local)},
+		"no shift wDay":                  {sched: specificWDMD, after: time.Date(2019, time.Month(10), 7, 1, 1, 1, 0, time.Local), want: time.Date(2019, time.Month(10), 10, 1, 1, 1, 0, time.Local)},
+		"shift wDay list":                {sched: listWDMD, after: time.Date(2019, time.Month(10), 7, 19, 56, 38, 0, time.Local), want: time.Date(2019, time.Month(12), 10, 14, 26, 50, 0, time.Local)},
+		"shift intervals":                {sched: intWDintMD, after: time.Date(2019, time.Month(10), 27, 22, 39, 16, 55, time.Local), want: time.Date(2020, time.Month(2), 20, 4, 3, 2, 0, time.Local)},
+		"tuesday the second":             {sched: tuesday2, after: time.Date(2019, time.Month(10), 1, 0, 0, 0, 1, time.Local), want: time.Date(2020, time.Month(6), 2, 15, 33, 5, 0, time.Local)},
+		"skipping the month with day 31": {sched: nextmonth31, after: time.Date(2019, time.Month(10), 30, 0, 0, 0, 1, time.Local), want: time.Date(2019, time.Month(12), 31, 0, 0, 1, 0, time.Local)},
 	}
 
 	for name, test := range tests {

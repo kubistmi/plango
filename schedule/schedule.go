@@ -3,7 +3,6 @@ package schedule
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,13 +40,6 @@ type partAny struct {
 	Text string
 }
 
-// PartInterval defines schedule based on the string "x-y". This definition will trigger on every occurence in this interval.
-// E.g. using 4-6 in hours field means the job will be run at hours 4, 5 and 6 (with regard to other definitions).
-type partInterval struct {
-	Min, Max int
-	Text     string
-}
-
 // PartList defines schedule based on the string "x,y,y". This definition will trigger on every occurence listed in the definition.
 // E.g. using 4,6,20 in minutes field means the job will be run at minutes 4, 6 and 20 (with regard to other definitions).
 type partList struct {
@@ -55,12 +47,16 @@ type partList struct {
 	Text string
 }
 
-// ---------------------- GET ORIGIN -------------------------------------------------------------------
-func (sp partAny) getOrigin() string {
-	return sp.Text
+func (sp partList) min() int {
+	return utils.FindMin(sp.List)
 }
 
-func (sp partInterval) getOrigin() string {
+func (sp partList) max() int {
+	return utils.FindMax(sp.List)
+}
+
+// ---------------------- GET ORIGIN -------------------------------------------------------------------
+func (sp partAny) getOrigin() string {
 	return sp.Text
 }
 
@@ -74,36 +70,6 @@ func (sp partList) getOrigin() string {
 func (sp partAny) compareTime(timepart int) (int, int) {
 	// timepart originates from time.Time so it's valid time value => safe to return
 	return timepart, 0
-}
-
-// compareTime ...
-func (sp partInterval) compareTime(timepart int) (int, int) {
-	var vec []int
-	var err error
-
-	// TODO: how to properly implement this?
-	vec, err = utils.MakeRange(sp.Min, sp.Max)
-	if err != nil {
-		log.Fatalf(
-			`Ok, so while comparing the time from the input %v (type Interval), the method was unable to create the slice defined by the bounds. \n
-			This was supposed to be handled while parsing the schedule and therefore should NEVER happen. Congratulations, I am so sorry, and please submit an issue at https://github.com/kubistmi/plango. \n
-			What you need to do now is to remove this schedule and resubmit it. Perhaps try different format. This is uncharted territory, so I really don't know.`,
-			sp.Text)
-	}
-
-	// find time value higher than or equal current time
-	// e.g. schedule = "0 0 5-7 * * *" ; current = 2019-10-12 06:00:00
-	//      return 2019-10-12 06:00:00
-	for _, val := range vec {
-		if val >= timepart {
-			return val, 0
-		}
-	}
-
-	// if no such value, choose the next (the smallest one) and shift the time
-	// e.g. schedule = "0 0 2-5 * * *" ; current = 2019-10-12 06:00:00
-	//      return 2019-10-13 02:00:00
-	return sp.Min, 1
 }
 
 // compareTime ...
@@ -126,19 +92,6 @@ func (sp partList) compareTime(timepart int) (int, int) {
 // ---------------------- CHECK PART ---------------------------------------------------------------
 // checkPart ...
 func (sp partAny) checkPart(partLim [2]int) error {
-	return nil
-}
-
-// checkPart ...
-func (sp partInterval) checkPart(partLim [2]int) error {
-	if sp.Min > sp.Max {
-		return fmt.Errorf("The ranges must be defined as 'min-max' with `min` <= `max`. Expects %v <= %v from string %s",
-			sp.Min, sp.Max, sp.Text)
-	}
-	if !(sp.Min >= partLim[0] && sp.Min <= partLim[1] && sp.Max >= partLim[0] && sp.Max <= partLim[1]) {
-		return fmt.Errorf("The range is not compliant for this part of Schedule. Expects numbers between %v-%v, got %v-%v from string %s",
-			partLim[0], partLim[1], sp.Min, sp.Max, sp.Text)
-	}
 	return nil
 }
 
@@ -203,10 +156,16 @@ func ParseSchedule(schedule string) (Schedule, error) {
 			min := utils.FindMin(limsI)
 			max := utils.FindMax(limsI)
 
-			part = partInterval{
+			list, err := utils.MakeRange(min, max)
+			//! not sure this is reachable
+			if err != nil {
+				return Schedule{},
+					fmt.Errorf("Error when attempting to build a list. Expected min-max got %v-%v", min, max)
+			}
+
+			part = partList{
 				Text: p,
-				Min:  min,
-				Max:  max,
+				List: list,
 			}
 
 		case strings.Contains(p, ","):
@@ -316,6 +275,6 @@ func (s Schedule) Next(After time.Time) (time.Time, error) {
 			}
 		}
 	}
-	// if the date cannot be found, not sure this is reachable
+	//! if the date cannot be found, not sure this is reachable
 	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local), fmt.Errorf("unable to find the date satisfying the schedule")
 }

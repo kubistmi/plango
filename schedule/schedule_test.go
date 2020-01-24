@@ -212,8 +212,6 @@ func TestCompareTime(t *testing.T) {
 
 func TestNext(t *testing.T) {
 
-	every := partAny{Text: "*"}
-
 	everySecond := Schedule{
 		Second:   every,
 		Minute:   every,

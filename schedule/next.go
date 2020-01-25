@@ -29,10 +29,7 @@ func (s Schedule) Next(after time.Time) (time.Time, error) {
 // NextTime ...
 func (s Schedule) NextTime(next time.Time) (time.Time, time.Time) {
 
-	hours := findCandidates(s.Hour, next.Hour())
-	minutes := findCandidates(s.Minute, next.Minute())
-	seconds := findCandidates(s.Second, next.Second())
-	minTime := time.Date(next.Year(), next.Month(), next.Day()+1, hours[0], minutes[0], seconds[0], 0, time.Local)
+	minTime := time.Date(next.Year(), next.Month(), next.Day()+1, s.Hour.min(0), s.Minute.min(0), s.Second.min(0), 0, time.Local)
 
 	nowSec := next.Hour()*3600 + next.Minute()*60 + next.Second()
 	nxtHour, nxtMin, nxtSec, err := walkTime(hours, minutes, seconds, nowSec)
@@ -91,10 +88,10 @@ func (s Schedule) NextDate(next time.Time) (time.Time, error) {
 				// if Schedule.Month too high, then jump to the next year and ...
 				// else to the max(Schedule.Month, 1) and ...
 				// ... lowest of the Schedule.MonthDay
-				next = next.AddDate(1, s.Month.min("month")-int(next.Month()), s.MonthDay.min("monthDay")-next.Day())
+				next = next.AddDate(1, s.Month.min(1)-int(next.Month()), s.MonthDay.min(1)-next.Day())
 			} else {
 				monthShift := []int{wdMonth - int(next.Month()), wdShift}
-				next = next.AddDate(0, utils.FindMax(monthShift), s.MonthDay.min("monthDay")-next.Day())
+				next = next.AddDate(0, utils.FindMax(monthShift), s.MonthDay.min(1)-next.Day())
 			}
 		}
 	}
@@ -114,7 +111,7 @@ func findCandidates(p part, next int) []int {
 		if len(candidates) >= 2 {
 			candidates = candidates[:2]
 		} else {
-			candidates = append([]int{h.min("hour")}, candidates...)
+			candidates = append([]int{v.min(0)}, candidates...)
 		}
 	case partAny:
 		candidates = []int{next, next + 1}

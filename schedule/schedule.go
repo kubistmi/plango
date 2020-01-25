@@ -26,7 +26,7 @@ var partOrder = []string{"second", "minute", "hour", "monthDay", "month", "weekD
 
 // Part ...
 type part interface {
-	min(parType string) int
+	min(date int) int
 	isin(el int) bool
 	checkPart(partLim [2]int) error
 	compareTime(timepart int) (int, int)
@@ -89,14 +89,13 @@ func (sp partList) isin(el int) bool {
 	return utils.IsIn(el, sp.List)
 }
 
-// ---------------------- MIN ------------------------------------------------------------------------
-func (sp partAny) min(parType string) int {
-	return utils.FindMax([]int{partLimits[parType][0], 0})
+// ---------------------- MIN ---------------------------------------------------------------------------
+func (sp partAny) min(date int) int {
+	return 0 + date
 }
 
-func (sp partList) min(parType string) int {
-	min := utils.FindMin(sp.List)
-	return utils.FindMax([]int{partLimits[parType][0], min})
+func (sp partList) min(date int) int {
+	return utils.FindMin(sp.List)
 }
 
 // ---------------------- GET ORIGIN -------------------------------------------------------------------

@@ -246,6 +246,9 @@ func TestNext(t *testing.T) {
 		Month:    every,
 	}
 
+	listDHMS := listHMS
+	listDHMS.MonthDay = partList{Text: "21", List: []int{21}}
+
 	specificWDMD := Schedule{
 		Second:   partList{Text: "1", List: []int{1}},
 		Minute:   partList{Text: "1", List: []int{1}},
@@ -291,6 +294,10 @@ func TestNext(t *testing.T) {
 		Month:    partList{Text: "10,12", List: []int{10, 12}},
 	}
 
+	feb29 := nextmonth31
+	feb29.MonthDay = partList{Text: "29", List: []int{29}}
+	feb29.Month = partList{Text: "2", List: []int{2}}
+
 	tests := map[string]struct {
 		sched Schedule
 		after time.Time
@@ -301,13 +308,15 @@ func TestNext(t *testing.T) {
 		"next year":                      {sched: specificMDHMS, after: time.Date(2019, time.Month(10), 7, 23, 20, 0, 0, time.Local), want: time.Date(2020, time.Month(1), 5, 12, 30, 0, 0, time.Local)},
 		"in 10 minutes":                  {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 16, 35, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 16, 46, 55, 0, time.Local)},
 		"in an hour":                     {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 16, 51, 0, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 17, 46, 55, 0, time.Local)},
-		"in 5 seconds":                   {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 20, 48, 53, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 20, 48, 55, 0, time.Local)},
+		"in few seconds":                 {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 20, 48, 53, 0, time.Local), want: time.Date(2019, time.Month(3), 25, 20, 48, 55, 0, time.Local)},
 		"tomorrow":                       {sched: listHMS, after: time.Date(2019, time.Month(3), 25, 21, 8, 6, 0, time.Local), want: time.Date(2019, time.Month(3), 26, 16, 46, 55, 0, time.Local)},
+		"time reset":                     {sched: listDHMS, after: time.Date(2019, time.Month(3), 20, 17, 47, 6, 0, time.Local), want: time.Date(2019, time.Month(3), 21, 16, 46, 55, 0, time.Local)},
 		"no shift wDay":                  {sched: specificWDMD, after: time.Date(2019, time.Month(10), 7, 1, 1, 1, 0, time.Local), want: time.Date(2019, time.Month(10), 10, 1, 1, 1, 0, time.Local)},
 		"shift wDay list":                {sched: listWDMD, after: time.Date(2019, time.Month(10), 7, 19, 56, 38, 0, time.Local), want: time.Date(2019, time.Month(12), 10, 14, 26, 50, 0, time.Local)},
 		"shift intervals":                {sched: intWDintMD, after: time.Date(2019, time.Month(10), 27, 22, 39, 16, 55, time.Local), want: time.Date(2020, time.Month(2), 20, 4, 3, 2, 0, time.Local)},
 		"tuesday the second":             {sched: tuesday2, after: time.Date(2019, time.Month(10), 1, 0, 0, 0, 1, time.Local), want: time.Date(2020, time.Month(6), 2, 15, 33, 5, 0, time.Local)},
 		"skipping the month with day 31": {sched: nextmonth31, after: time.Date(2019, time.Month(11), 30, 17, 0, 0, 0, time.Local), want: time.Date(2019, time.Month(12), 31, 15, 33, 5, 0, time.Local)},
+		"february the 29th":              {sched: feb29, after: time.Date(2016, time.Month(10), 30, 17, 45, 27, 0, time.Local), want: time.Date(2020, time.Month(2), 29, 15, 33, 5, 0, time.Local)},
 	}
 
 	for name, test := range tests {

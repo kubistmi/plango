@@ -44,26 +44,32 @@ func (s Schedule) NextTime(next time.Time) (time.Time, time.Time) {
 
 // NextDate ...
 func (s Schedule) NextDate(next time.Time) (time.Time, error) {
-	var nxtMday, nxtMonth int
-	var shift int
+	// TODO: should this be a config variable?
+	iter := 50
 
 	switch s.WeekDay.(type) {
 
 	case partAny:
 		// the easy part, for non-specific weekDay, just go through the calendar
-		nxtMday, shift = s.MonthDay.compareTime(next.Day())
-		next = next.AddDate(0, shift, 0)
+		var nxtMday, nxtMonth int
+		var mdShift, mShift int
 
-		nxtMonth, shift = s.Month.compareTime(int(next.Month()))
-		if int(next.Month()) != nxtMonth {
-			nxtMday = s.MonthDay.min("monthDay")
+		for i := 0; i < iter; i++ {
+			nxtMday, mdShift = s.MonthDay.compareTime(next.Day())
+			next = next.AddDate(0, mdShift, 0)
+
+			nxtMonth, mShift = s.Month.compareTime(int(next.Month()))
+			next = next.AddDate(mShift, nxtMonth-int(next.Month()), nxtMday-next.Day())
+
+			if int(next.Month()) != nxtMonth {
+				next = next.AddDate(0, 0, 1)
+				continue
+			} else {
+				return next, nil
+			}
 		}
-		return next.AddDate(shift, nxtMonth-int(next.Month()), nxtMday-next.Day()), nil
-		//return time.Date(nxtYear, time.Month(nxtMonth), nxtMday, nxtHour, nxtMinute, nxtSecond, 0, time.Local), nil
 
 	default:
-		// TODO: should this be a config variable?
-		iter := 50
 
 		var wdMday, wdNext, wdShift int
 
@@ -81,7 +87,6 @@ func (s Schedule) NextDate(next time.Time) (time.Time, error) {
 
 			// very greedy early exit, if the monthDay and month are OK, return
 			if wdShift == 0 && wdMday == next.Day() && wdMonth == int(next.Month()) {
-				fmt.Println(next)
 				if s.MonthDay.isin(next.Day()) && s.Month.isin(int(next.Month())) {
 					return next, nil
 				}

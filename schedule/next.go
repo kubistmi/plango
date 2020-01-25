@@ -29,6 +29,9 @@ func (s Schedule) Next(after time.Time) (time.Time, error) {
 // NextTime ...
 func (s Schedule) NextTime(next time.Time) (time.Time, time.Time) {
 
+	hours := findCandidates(s.Hour, next.Hour(), 24)
+	minutes := findCandidates(s.Minute, next.Minute(), 60)
+	seconds := findCandidates(s.Second, next.Second(), 60)
 	minTime := time.Date(next.Year(), next.Month(), next.Day()+1, s.Hour.min(0), s.Minute.min(0), s.Second.min(0), 0, time.Local)
 
 	nowSec := next.Hour()*3600 + next.Minute()*60 + next.Second()
@@ -99,22 +102,24 @@ func (s Schedule) NextDate(next time.Time) (time.Time, error) {
 	return time.Date(0, 0, 0, 0, 0, 0, 0, time.Local), fmt.Errorf("unable to find the date satisfying the schedule")
 }
 
-func findCandidates(p part, next int) []int {
+func findCandidates(p part, next int, check int) []int {
 	candidates := make([]int, 0, 60)
-	switch h := p.(type) {
+	switch v := p.(type) {
 	case partList:
-		for _, val := range h.List {
+		for _, val := range v.List {
 			if val >= next {
 				candidates = append(candidates, val)
 			}
 		}
-		if len(candidates) >= 2 {
-			candidates = candidates[:2]
+		if len(candidates) >= 3 {
+			candidates = candidates[:3]
 		} else {
 			candidates = append([]int{v.min(0)}, candidates...)
 		}
 	case partAny:
-		candidates = []int{next, next + 1}
+		for i := 0; i < 4; i++ {
+			candidates = append(candidates, (next+i)%check)
+		}
 	}
 	return candidates
 }
